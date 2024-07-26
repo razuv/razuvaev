@@ -327,18 +327,24 @@ onMounted(() => {
           <div style="width: 48px; height: 48px; background: #000; border-radius: 8px; opacity: 0.4;" v-else />
         </VCol>
 
-        <VCol cols="9">
+        <VCol>
           <VTextField
             :label="`Ссылка на картинку #${image_idx + 1} *`"
             v-model="image.link"
           />
         </VCol>
 
-        <VCol cols="2">
-          <VBtn color="error" @click="deleteItem(currentProject.info.images, image_idx)">
+        <div style="padding-right: 12px;">
+          <VBtn class="mr-1" size="small" variant="outlined" @click="moveItem(currentProject.info.images, image_idx, -1)" :disabled="image_idx <= 0">
+            <VIcon icon="mdi-arrow-up-thin" />
+          </VBtn>
+          <VBtn class="mr-1" size="small" variant="outlined" @click="moveItem(currentProject.info.images, image_idx, 1)" :disabled="image_idx >= currentProject.info.images.length - 1">
+            <VIcon icon="mdi-arrow-down-thin" />
+          </VBtn>
+          <VBtn color="error" size="small" @click="deleteItem(currentProject.info.images, image_idx)">
             <VIcon icon="mdi-trash" />
           </VBtn>
-        </VCol>
+        </div>
       </VRow>
 
       <VRow class="px-5 mb-1">
