@@ -25,6 +25,7 @@ export interface SettingsType {
       rules: {
         nda: boolean;
         details: boolean;
+        syncMedia?: boolean;
       };
       info: {
         title: string;

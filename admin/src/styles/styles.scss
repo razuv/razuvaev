@@ -1,1 +1,139 @@
-// Write your overrides
+@font-face {
+  font-display: swap;
+  font-family: "Suisse";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../../../ui/src/assets/fonts/SuisseIntl-Book-WebM.ttf") format("truetype");
+}
+
+.v-theme--dark {
+  color-scheme: dark;
+}
+
+.v-theme--light {
+  color-scheme: light;
+}
+
+html,
+body,
+#app {
+  background: #000;
+}
+
+.v-application {
+  background: rgb(var(--v-theme-background)) !important;
+  color: rgb(var(--v-theme-on-background));
+  font-family: "Suisse", Arial, sans-serif !important;
+}
+
+* {
+  font-family: inherit !important;
+}
+
+.layout-wrapper,
+.layout-content-wrapper,
+.layout-page-content,
+.layout-navbar,
+.layout-footer,
+.v-navigation-drawer {
+  background: rgb(var(--v-theme-background)) !important;
+}
+
+.layout-page-content {
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.v-navigation-drawer {
+  border-right: 1px solid rgba(var(--v-theme-on-background), 0.14) !important;
+}
+
+.v-card,
+.v-table,
+.v-list {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  background: rgb(var(--v-theme-surface)) !important;
+}
+
+.v-card {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+  border-radius: 18px !important;
+  box-shadow: none !important;
+}
+
+.v-card-title {
+  padding: 20px 22px !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
+}
+
+.v-btn {
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.v-btn--variant-elevated:not(.bg-error) {
+  background: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.v-btn--variant-outlined {
+  border-color: rgba(var(--v-theme-on-background), 0.75) !important;
+  color: rgb(var(--v-theme-on-background)) !important;
+}
+
+.v-field {
+  border-radius: 14px !important;
+  background: rgba(var(--v-theme-on-background), .035) !important;
+}
+
+.v-field__outline {
+  --v-field-border-opacity: .28;
+}
+
+.v-table > .v-table__wrapper > table > thead > tr > th {
+  color: rgba(var(--v-theme-on-surface), .55) !important;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .08em;
+}
+
+.v-table > .v-table__wrapper > table > tbody > tr:not(:last-child) > td {
+  border-bottom-color: rgba(var(--v-theme-on-surface), .1) !important;
+}
+
+.v-list-item {
+  border-radius: 999px !important;
+}
+
+.v-list-item--active {
+  background: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.v-dialog > .v-overlay__content > .v-card {
+  background: rgb(var(--v-theme-surface)) !important;
+}
+
+.v-overlay__scrim {
+  background: #000 !important;
+  opacity: .78 !important;
+}
+
+.v-switch .v-selection-control__input {
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(var(--v-theme-on-background), .28);
+}

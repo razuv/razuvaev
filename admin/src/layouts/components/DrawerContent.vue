@@ -1,15 +1,6 @@
 <script setup lang="ts">
-import upgradeBannerDark from '@/assets/images/pro/upgrade-banner-dark.png'
-import upgradeBannerLight from '@/assets/images/pro/upgrade-banner-light.png'
 import { VerticalNavLink, VerticalNavSectionTitle } from '@layouts'
-import { useTheme } from 'vuetify'
-
-const vuetifyTheme = useTheme()
-const upgradeBanner = computed(() => {
-  return vuetifyTheme.global.name.value === 'light'
-    ? upgradeBannerLight
-    : upgradeBannerDark
-})
+import PortfolioLogo from '@/components/PortfolioLogo.vue'
 </script>
 
 <template>
@@ -19,9 +10,10 @@ const upgradeBanner = computed(() => {
       to="/"
       class="app-logo d-flex align-center gap-x-3 app-title-wrapper"
     >
+      <PortfolioLogo class="app-logo__mark" />
       <Transition name="vertical-nav-app-title">
-        <h1 class="font-weight-semibold leading-normal text-xl text-uppercase">
-          Admin
+        <h1 class="font-weight-regular leading-normal text-lg">
+          Razuvaev CMS
         </h1>
       </Transition>
     </RouterLink>
@@ -155,5 +147,10 @@ const upgradeBanner = computed(() => {
   // bottom: 13px;
   // left: 50%;
   // transform: translateX(-50%);
+}
+
+.app-logo__mark {
+  flex: 0 0 24px;
+  color: rgb(var(--v-theme-on-background));
 }
 </style>

@@ -11,6 +11,11 @@ import vuetify from 'vite-plugin-vuetify'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    fs: {
+      allow: ['..'],
+    },
+  },
   plugins: [
     vue(),
     vueJsx(),

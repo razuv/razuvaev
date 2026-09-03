@@ -25,6 +25,7 @@ export interface SettingsType {
       rules: {
         nda: boolean;
         details: boolean;
+        syncMedia?: boolean;
       };
       info: {
         title: string;
@@ -48,7 +49,39 @@ export interface SettingsType {
 
 let settings: SettingsType;
 export let token: string;
-const baseUrl: string = 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net';
+const settingsUrl = import.meta.env.VITE_SETTINGS_URL || 'https://razuvaev-admin-ng.website.yandexcloud.net/settings.json';
+const baseUrl = (import.meta.env.VITE_API_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net').replace(/\/$/, '');
+const mediaBaseUrl = (import.meta.env.VITE_MEDIA_BASE_URL || `${baseUrl}/api`).replace(/\/$/, '');
+
+export const resolveMediaUrl = (link: string): string => {
+  if(link.startsWith('/media/')) {
+    return `${mediaBaseUrl}${link}`;
+  }
+
+  return link;
+}
+
+export const uploadMedia = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${baseUrl}/api/media?token=${token}`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if(!response.ok) {
+    throw new Error(`Failed to upload media: ${response.status}`);
+  }
+
+  const result = await response.json();
+
+  if(!result?.link) {
+    throw new Error('Media upload did not return a link');
+  }
+
+  return result.link;
+}
 
 export const getSettings = async (forceReload?: boolean): Promise<SettingsType> => {
   if(settings && !forceReload) {
@@ -56,8 +89,13 @@ export const getSettings = async (forceReload?: boolean): Promise<SettingsType> 
   }
 
   const timestamp = new Date().getTime();
-  const response = await (await fetch(`https://razuvaev-admin-ng.website.yandexcloud.net/settings.json?v=${timestamp}`)).json();
-  settings = response as SettingsType;
+  const response = await fetch(`${settingsUrl}?v=${timestamp}`);
+
+  if(!response.ok) {
+    throw new Error(`Failed to load settings: ${response.status}`);
+  }
+
+  settings = await response.json() as SettingsType;
 
   return settings;
 }
@@ -69,24 +107,34 @@ export const setSettings = async <T extends keyof SettingsType, K extends typeof
 
   settings[key] = data;
 
-  const response = await (await fetch(`${baseUrl}/api/update?token=${token}`, {
+  const response = await fetch(`${baseUrl}/api/update?token=${token}`, {
     method: "PUT",
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(settings)
-  })).json();
+  });
 
-  return response;
+  if(!response.ok) {
+    throw new Error(`Failed to update settings: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 export const checkTokenValidation = async (tokenPayload: string): Promise<boolean> => {
-  const response = await (await fetch(`${baseUrl}/api/token?token=${tokenPayload}`)).json();
+  const response = await fetch(`${baseUrl}/api/token?token=${tokenPayload}`);
 
-  if(!!response.isTokenValid) {
+  if(!response.ok) {
+    return false;
+  }
+
+  const result = await response.json();
+
+  if(!!result.isTokenValid) {
     token = tokenPayload;
     sessionStorage.setItem('razuvaev-admin-token', token);
   }
 
-  return !!(response.isTokenValid);
+  return !!result.isTokenValid;
 };

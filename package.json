@@ -1,0 +1,21 @@
+{
+  "name": "razuvaev-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.9.4",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "scripts": {
+    "install:all": "npm ci --prefix ui && npm ci --prefix admin && npm ci --prefix api",
+    "build": "npm run build:ui && npm run build:admin && npm run build:api",
+    "build:ui": "npm run build --prefix ui",
+    "build:admin": "npm run build --prefix admin",
+    "build:api": "npm run build --prefix api",
+    "typecheck": "npm run typecheck --prefix ui && npm run typecheck --prefix admin && npm run typecheck --prefix api",
+    "media:localize": "node scripts/localize-media.mjs",
+    "dev:ui": "npm run dev --prefix ui",
+    "dev:admin": "npm run dev --prefix admin",
+    "dev:api": "npm run start:dev --prefix api"
+  }
+}

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { checkTokenValidation } from '@/api';
 import router from '@/router';
+import PortfolioLogo from '@/components/PortfolioLogo.vue';
 
 const token = ref<string>('');
 const isLoading = ref<boolean>(false);
@@ -26,6 +27,7 @@ const checkToken = async () => {
       max-width="500"
       width="100%"
     >
+      <PortfolioLogo class="auth-card__logo" />
       <VCardText class="pt-2">
         <h5 class="text-h5 font-weight-semibold mb-1">
           Йо! 👋🏻
@@ -62,6 +64,14 @@ const checkToken = async () => {
 
 <style lang="scss">
 @use "@core/scss/pages/page-auth.scss";
+
+.auth-card__logo {
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin: 0 16px 12px;
+  color: rgb(var(--v-theme-on-surface));
+}
 </style>
 
 <route lang="yaml">

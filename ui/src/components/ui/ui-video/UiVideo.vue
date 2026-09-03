@@ -1,14 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+
 interface Props {
   src: string;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+const isVideoFile = computed(() => /\.(mp4|webm|mov|m4v)(?:\?|$)/i.test(props.src));
 </script>
 
 <template>
   <div class="ui-video">
+    <video
+      v-if="isVideoFile"
+      :src="src"
+      controls
+      playsinline
+    />
     <iframe
+      v-else
       :src="`${src}?pip=0`"
       allow="fullscreen;"
     />
@@ -28,7 +38,8 @@ defineProps<Props>();
   border-radius: 8px;
   overflow: hidden;
 
-  & iframe {
+  & iframe,
+  & video {
     position: absolute;
     top: 0;
     left: 0;

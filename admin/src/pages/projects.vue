@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { SettingsType, getSettings, setSettings } from '@/api';
+import MediaInput from '@/components/MediaInput.vue';
 
 type ProjectDetails = SettingsType['projects'][number]['items'][number];
 
@@ -37,7 +38,8 @@ const emptyProjectSetup = (iso: SettingsType['projects'][number]['iso']): Settin
 const emptyProject = (): ProjectDetails => ({
   rules: {
     nda: true,
-    details: false
+    details: false,
+    syncMedia: true
   },
   info: {
     title: '',
@@ -63,11 +65,17 @@ const currentProject = ref<ProjectDetails>();
 const isCurrentProjectDetailsOpen = ref<boolean>();
 const isProjectCreating = ref<boolean>();
 const isLoading = ref<boolean>();
+const draggedProjectIndex = ref<number | null>(null);
 
 const loadData = async () => {
   const response = await getSettings(true);
   languages.value = response.languages;
   projects.value = response.projects;
+  response.projects.forEach(project => {
+    project.items.forEach(item => {
+      item.rules.syncMedia ??= true;
+    });
+  });
 
   if(languages.value && languages.value.length > 0) {
     openContent(languages.value[0].iso);
@@ -110,6 +118,19 @@ const onSave = async () => {
   const chosenProjectIndex = projectsCopy.findIndex(p => p.iso === currentProjects.value?.iso);
 
   if(chosenProjectIndex >= 0 && projectsCopy[chosenProjectIndex]) {
+    projectsCopy.forEach(project => {
+      if(project.iso === currentProjects.value?.iso) return;
+
+      currentProjects.value?.items.forEach((sourceProject, index) => {
+        if(project.items[index]) {
+          project.items[index].rules.syncMedia = sourceProject.rules.syncMedia !== false;
+          if(sourceProject.rules.syncMedia !== false) {
+            project.items[index].info.images = sourceProject.info.images.map(image => ({ ...image }));
+          }
+        }
+      });
+    });
+
     projectsCopy[chosenProjectIndex] = currentProjects.value;
     projects.value = projectsCopy;
 
@@ -153,6 +174,29 @@ const deleteItem = (originalArray: unknown[], idx: number) => {
   originalArray.splice(idx, 1);
   return originalArray;
 }
+
+const onProjectDragStart = (index: number, event: DragEvent) => {
+  draggedProjectIndex.value = index;
+  if(event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+};
+
+const onProjectDrop = (targetIndex: number) => {
+  const sourceIndex = draggedProjectIndex.value;
+  draggedProjectIndex.value = null;
+
+  if(sourceIndex === null || sourceIndex === targetIndex || !currentProjects.value) return;
+
+  const [project] = currentProjects.value.items.splice(sourceIndex, 1);
+  currentProjects.value.items.splice(targetIndex, 0, project);
+
+  if(projects.value) {
+    projects.value.forEach(locale => {
+      if(locale.iso === currentLanguage.value || !locale.items[sourceIndex]) return;
+      const [localizedProject] = locale.items.splice(sourceIndex, 1);
+      locale.items.splice(targetIndex, 0, localizedProject);
+    });
+  }
+};
 
 const openProjectDetails = (project: ProjectDetails | null, visibility: boolean): ProjectDetails => {
   isProjectCreating.value = !project;
@@ -202,7 +246,7 @@ onMounted(() => {
 
 <template>
   <VRow class="match-height" v-if="currentProjects">
-    <VCol cols="2">
+    <VCol cols="12" md="2">
       <v-list v-if="projects" style="height: 100%">
         <v-list-item title="Язык"></v-list-item>
         <v-divider></v-divider>
@@ -220,7 +264,7 @@ onMounted(() => {
       </v-list>
     </VCol>
 
-    <VCol cols="10">
+    <VCol cols="12" md="10">
       <VCol class="d-flex" cols="12">
         <VBtn class="ml-auto" color="success" variant="outlined" @click="onSave" :loading="isLoading">
           Сохранить
@@ -236,6 +280,9 @@ onMounted(() => {
                   Проект
                 </th>
                 <th class="text-uppercase">
+                  Общее медиа
+                </th>
+                <th class="text-uppercase">
                   Действия
                 </th>
               </tr>
@@ -243,20 +290,32 @@ onMounted(() => {
             <tbody>
               <tr
                 v-for="(project, idx) in currentProjects.items"
-                :key="`project-${idx}`"
+                :key="`${project.info.title}-${idx}`"
+                draggable="true"
+                class="project-row"
+                :class="{ 'project-row--dragging': draggedProjectIndex === idx }"
+                @dragstart="onProjectDragStart(idx, $event)"
+                @dragend="draggedProjectIndex = null"
+                @dragover.prevent
+                @drop.prevent="onProjectDrop(idx)"
               >
                 <td>
-                  {{ project.info.title }}
+                  <div class="project-row__title">
+                    <VIcon icon="mdi-drag" size="20" />
+                    {{ project.info.title }}
+                  </div>
+                </td>
+                <td style="width: 150px">
+                  <VSwitch
+                    v-model="project.rules.syncMedia"
+                    class="project-row__media-switch"
+                    :aria-label="`Общее медиа для языков: ${project.info.title}`"
+                    hide-details
+                  />
                 </td>
                 <td style="width: 280px">
                   <VBtn class="mr-1" size="small" color="warning" @click="openProjectDetails(project, true)">
                     <VIcon icon="mdi-pen" />
-                  </VBtn>
-                  <VBtn class="mr-1" size="small" variant="outlined" @click="moveItem(currentProjects.items, idx, -1)" :disabled="idx <= 0">
-                    <VIcon icon="mdi-arrow-up-thin" />
-                  </VBtn>
-                  <VBtn class="mr-1" size="small" variant="outlined" @click="moveItem(currentProjects.items, idx, 1)" :disabled="idx >= currentProjects.items.length - 1">
-                    <VIcon icon="mdi-arrow-down-thin" />
                   </VBtn>
                   <VBtn size="small" color="error" @click="deleteItem(currentProjects.items, idx)">
                     <VIcon icon="mdi-trash" />
@@ -319,18 +378,10 @@ onMounted(() => {
         v-for="(image, image_idx) in currentProject.info.images"
         :key="`image-project-${image_idx}`"
       >
-        <VCol cols="1">
-          <div style="width: 48px; height: 48px;" v-if="image.link">
-            <img style="width: 100%; height: 100%;" :src="image.link" alt="">
-          </div>
-
-          <div style="width: 48px; height: 48px; background: #000; border-radius: 8px; opacity: 0.4;" v-else />
-        </VCol>
-
-        <VCol cols="9">
-          <VTextField
-            :label="`Ссылка на картинку #${image_idx + 1} *`"
+        <VCol>
+          <MediaInput
             v-model="image.link"
+            :label="`Медиа #${image_idx + 1} *`"
           />
         </VCol>
 
@@ -428,3 +479,30 @@ onMounted(() => {
     </VCard>
   </VDialog>
 </template>
+
+<style scoped lang="scss">
+.project-row {
+  cursor: grab;
+  transition: opacity 160ms ease, background-color 160ms ease;
+}
+
+.project-row:hover {
+  background: rgba(255, 255, 255, .04);
+}
+
+.project-row--dragging {
+  opacity: .35;
+}
+
+.project-row__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-row__media-switch {
+  width: fit-content;
+  transform: scale(.78);
+  transform-origin: left center;
+}
+</style>

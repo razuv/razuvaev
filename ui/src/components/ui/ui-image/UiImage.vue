@@ -5,7 +5,7 @@ import { Swiper, SwiperSlide } from 'vue-awesome-swiper';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
-import { detectContentByLink } from '../../../utils/api';
+import { detectContentByLink, resolveMediaUrl } from '../../../utils/api';
 
 import UiVideo from '../ui-video/UiVideo.vue';
 
@@ -37,7 +37,7 @@ const onClick = () => {
     >
       <img
         v-if="detectContentByLink(images[0]) === 'image'"
-        :src="images[0]"
+        :src="resolveMediaUrl(images[0])"
         alt="Preview"
         ondragstart="return false"
         @click="onClick"
@@ -45,13 +45,13 @@ const onClick = () => {
 
       <ui-video
         v-else
-        :src="images[0]"
+        :src="resolveMediaUrl(images[0])"
       />
     </div>
 
     <swiper
       v-else
-      :allow-touch-move="false"
+      :allow-touch-move="true"
       :slides-per-view="1"
       :modules="[Navigation, Pagination]"
       :pagination="{
@@ -66,7 +66,7 @@ const onClick = () => {
       >
         <img
           v-if="detectContentByLink(image) === 'image'"
-          :src="image"
+          :src="resolveMediaUrl(image)"
           alt="Preview"
           ondragstart="return false"
           @click="onClick"
@@ -74,7 +74,7 @@ const onClick = () => {
 
         <ui-video
           v-else
-          :src="image"
+          :src="resolveMediaUrl(image)"
         />
       </swiper-slide>
     </swiper>

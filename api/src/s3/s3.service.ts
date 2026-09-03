@@ -3,6 +3,13 @@ import { Injectable } from '@nestjs/common';
 const EasyYandexS3 = require('easy-yandex-s3').default;
 const fs = require('fs-extra');
 const TelegramBot = require('node-telegram-bot-api');
+const path = require('path');
+const crypto = require('crypto');
+
+interface UploadedMediaFile {
+  buffer: Buffer;
+  originalname: string;
+}
 
 const messageConverter = (m: string): string[] => { 
   const max_size = 4096;
@@ -25,11 +32,8 @@ const messageConverter = (m: string): string[] => {
 @Injectable()
 export class S3Service {
   private readonly TelegramToken = process.env.TG_BOT_ID
-  private readonly TelegramGroupID = -4008140725
-  private readonly bot = new TelegramBot(
-    this.TelegramToken,
-    { pooling: true }
-  )
+  private readonly TelegramGroupID = process.env.TG_GROUP_ID || '-4008140725'
+  private readonly bot = new TelegramBot(this.TelegramToken)
   private readonly s3 = new EasyYandexS3({
     auth: {
       accessKeyId: process.env.S3_ACCESS_KEY_ID,
@@ -39,6 +43,30 @@ export class S3Service {
   })
 
   constructor() { }
+
+  async UploadMedia(file: UploadedMediaFile): Promise<string> {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const filename = `${Date.now()}-${crypto.randomUUID()}${extension}`;
+    const mediaPath = path.join('media', filename);
+
+    await fs.ensureDir('media');
+    await fs.writeFile(mediaPath, file.buffer);
+
+    try {
+      const uploadStatus = await this.s3.Upload({
+        buffer: file.buffer,
+        name: filename,
+      }, '/media/');
+
+      if(uploadStatus && !Array.isArray(uploadStatus) && uploadStatus.Location) {
+        return uploadStatus.Location;
+      }
+    } catch (error) {
+      console.error('S3 media upload failed, using local media file', error);
+    }
+
+    return `/media/${filename}`;
+  }
 
 
   async UploadSettings(content: Record<string, string>) {

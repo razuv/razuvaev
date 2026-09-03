@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller';
 import { S3Module } from './s3/s3.module';
-import { S3Service } from './s3/s3.service'
 
 const config = {
   envFilePath: '.env',
@@ -17,9 +16,6 @@ const config = {
   ],
   controllers: [
     AppController
-  ],
-  providers: [
-    S3Service
   ],
 })
 

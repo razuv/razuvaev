@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { SettingsType, Social, getSettings, setSettings } from '@/api';
+import MediaInput from '@/components/MediaInput.vue';
 
 const emptyBio = (iso: SettingsType['biography'][number]['iso']): SettingsType['biography'][number] => ({
   iso,
@@ -131,7 +132,7 @@ onMounted(() => {
 
 <template>
   <VRow class="match-height" v-if="currentBiography">
-    <VCol cols="2">
+    <VCol cols="12" md="2">
       <v-list v-if="biography" style="height: 100%">
         <v-list-item title="Язык"></v-list-item>
         <v-divider></v-divider>
@@ -149,7 +150,7 @@ onMounted(() => {
       </v-list>
     </VCol>
 
-    <VCol cols="10">
+    <VCol cols="12" md="10">
       <VCol class="d-flex" cols="12">
         <VBtn class="ml-auto" color="success" variant="outlined" @click="onSave" :loading="isLoading">
           Сохранить
@@ -202,7 +203,6 @@ onMounted(() => {
           <VTable>
             <thead>
               <tr>
-                <th class="px-1" style="width: 56px"></th>
                 <th class="text-uppercase px-1">
                   Текст
                 </th>
@@ -223,11 +223,6 @@ onMounted(() => {
                 :key="`new-feed-${idx}`"
               >
                 <td class="py-2 px-1">
-                  <div style="width: 48px; height: 48px;">
-                    <img style="width: 100%; height: 100%;" :src="news.image" alt="">
-                  </div>
-                </td>
-                <td class="py-2 px-1">
                   <VTextField
                     v-model="news.text"
                     placeholder="Текст"
@@ -240,9 +235,9 @@ onMounted(() => {
                   />
                 </td>
                 <td class="py-2 px-1">
-                  <VTextField
+                  <MediaInput
                     v-model="news.image"
-                    placeholder="Ссылка на картинку"
+                    label="Изображение или видео"
                   />
                 </td>
                 <td class="px-1" style="width: 200px">
@@ -289,9 +284,9 @@ onMounted(() => {
         class="mb-2"
       />
 
-      <VTextField
+      <MediaInput
         v-model="feedCreatingImage"
-        placeholder="Ссылка на картинку (формат 48x48)"
+        label="Изображение или видео"
         class="mb-2"
       />
 
