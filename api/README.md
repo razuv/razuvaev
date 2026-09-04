@@ -13,6 +13,7 @@ npm run start:dev
 Переменные окружения:
 
 - `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` — доступ к Object Storage;
+- `S3_ENDPOINT`, `S3_REGION`, `S3_PUBLIC_URL` — необязательные настройки S3-совместимого хранилища;
 - `ADMIN_TOKEN` — токен админки;
 - `TG_BOT_ID`, `TG_GROUP_ID` — бот и чат для резервной отправки настроек;
 - `CORS_ORIGINS` — разрешённые origins через запятую;
