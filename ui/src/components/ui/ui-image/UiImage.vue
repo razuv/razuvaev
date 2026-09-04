@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // @ts-ignore
-import { Navigation, Pagination } from 'swiper';
-import { Swiper, SwiperSlide } from 'vue-awesome-swiper';
+import { Navigation, Pagination } from 'swiper/modules';
+import { Swiper, SwiperSlide } from 'swiper/vue';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';

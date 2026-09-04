@@ -1,4 +1,3 @@
-/* eslint-disable import/order */
 import '@/@iconify/icons-bundle'
 import App from '@/App.vue'
 import vuetify from '@/plugins/vuetify'

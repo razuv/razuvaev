@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
-    "baseUrl": "./",
     "target": "esnext",
     "useDefineForClassFields": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "isolatedModules": true,
     "strict": true,
     "jsx": "preserve",
@@ -15,22 +14,22 @@
     "esModuleInterop": true,
     "paths": {
       "@/*": [
-        "src/*"
+        "./src/*"
       ],
       "@layouts/*": [
-        "src/@layouts/*"
+        "./src/@layouts/*"
       ],
       "@layouts": [
-        "src/@layouts"
+        "./src/@layouts"
       ],
       "@core/*": [
-        "src/@core/*"
+        "./src/@core/*"
       ],
       "@core": [
-        "src/@core"
+        "./src/@core"
       ],
       "@axios": [
-        "src/plugins/axios"
+        "./src/plugins/axios"
       ]
     },
     "lib": [
@@ -42,8 +41,7 @@
     "skipLibCheck": true,
     "types": [
       "vite/client",
-      "vite-plugin-pages/client",
-      "vite-plugin-vue-layouts/client"
+      "vite-plugin-pages/client"
     ]
   },
   "include": [

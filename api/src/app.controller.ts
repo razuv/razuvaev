@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { readFile } from 'fs/promises';
 import { basename, join } from 'path';
-import { S3Service } from './s3/s3.service';
+import { S3Service } from './s3/s3.service.js';
 
 interface UploadedMediaFile {
   buffer: Buffer;

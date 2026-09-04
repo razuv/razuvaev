@@ -1,10 +1,21 @@
 import { Injectable } from '@nestjs/common';
+import crypto from 'node:crypto';
+import path from 'node:path';
+import easyYandexS3Package from 'easy-yandex-s3';
+import fs from 'fs-extra';
+import { Bot } from 'node-telegram-bot-api';
 
-const EasyYandexS3 = require('easy-yandex-s3').default;
-const fs = require('fs-extra');
-const TelegramBot = require('node-telegram-bot-api');
-const path = require('path');
-const crypto = require('crypto');
+interface S3UploadResult {
+  Location?: string;
+}
+
+interface EasyYandexS3Client {
+  Upload(file: { buffer: Buffer; name: string }, route: string): Promise<S3UploadResult | S3UploadResult[] | false>;
+}
+
+const EasyYandexS3 = (easyYandexS3Package as unknown as {
+  default: new (config: Record<string, unknown>) => EasyYandexS3Client;
+}).default;
 
 interface UploadedMediaFile {
   buffer: Buffer;
@@ -33,7 +44,7 @@ const messageConverter = (m: string): string[] => {
 export class S3Service {
   private readonly TelegramToken = process.env.TG_BOT_ID
   private readonly TelegramGroupID = process.env.TG_GROUP_ID || '-4008140725'
-  private readonly bot = new TelegramBot(this.TelegramToken)
+  private readonly bot = new Bot(this.TelegramToken)
   private readonly s3 = new EasyYandexS3({
     auth: {
       accessKeyId: process.env.S3_ACCESS_KEY_ID,
@@ -84,7 +95,11 @@ export class S3Service {
       await fs.writeFile(settingsPath, _content);
 
       messageConverter(_content).forEach(message => {
-        this.bot.sendMessage(this.TelegramGroupID, message, { parse_mode: 'html' })
+        void this.bot.api.sendMessage({
+          chat_id: this.TelegramGroupID,
+          text: message,
+          parse_mode: 'HTML',
+        })
       });
 
       const file = await fs.readFile(settingsPath);
@@ -95,7 +110,7 @@ export class S3Service {
       }, '');
 
       return !!uploadStatus;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

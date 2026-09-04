@@ -6,7 +6,6 @@ import DefineOptions from 'unplugin-vue-define-options/vite'
 import { fileURLToPath } from 'url'
 import { defineConfig } from 'vite'
 import Pages from 'vite-plugin-pages'
-import Layouts from 'vite-plugin-vue-layouts'
 import vuetify from 'vite-plugin-vuetify'
 
 // https://vitejs.dev/config/
@@ -21,13 +20,8 @@ export default defineConfig({
     vueJsx(),
 
     // https://github.com/vuetifyjs/vuetify-loader/tree/next/packages/vite-plugin
-    vuetify({
-      styles: {
-        configFile: 'src/styles/variables/_vuetify.scss',
-      },
-    }),
+    vuetify(),
     Pages({}),
-    Layouts(),
     Components({
       dirs: ['src/@core/components'],
       dts: true,

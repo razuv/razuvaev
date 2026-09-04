@@ -2,9 +2,9 @@
   "name": "razuvaev-portfolio",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "npm@10.9.4",
+  "packageManager": "npm@12.0.2",
   "engines": {
-    "node": ">=20 <23"
+    "node": ">=26 <27"
   },
   "scripts": {
     "install:all": "npm ci --prefix ui && npm ci --prefix admin && npm ci --prefix api",
