@@ -10,6 +10,13 @@ import vuetify from 'vite-plugin-vuetify'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  css: {
+    preprocessorOptions: {
+      scss: {
+        silenceDeprecations: ['if-function', 'global-builtin'],
+      },
+    },
+  },
   server: {
     fs: {
       allow: ['..'],
