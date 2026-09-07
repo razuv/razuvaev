@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { richText } from "../utils/content";
 import { ref, onMounted } from 'vue';
 import { SettingsType } from '../types/api.types';
 import { getData } from '../utils/api';
@@ -18,7 +19,7 @@ onMounted(() => {
     v-if="bio"
     class="biography-view"
   >
-    <span class="biography-view__text" v-html="bio.text.replace(/(?:\r\n|\r|\n)/g, '<br />')" />
+    <span class="biography-view__text" v-html="richText(bio.text)" />
 
     <UiContacts
       class="biography-view__contacts"

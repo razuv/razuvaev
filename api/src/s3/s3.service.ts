@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { Bot } from 'node-telegram-bot-api';
 
 interface UploadedMediaFile {
   buffer: Buffer;
@@ -13,33 +12,12 @@ interface UploadedMediaFile {
 const sha256 = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex');
 const hmac = (key: string | Buffer, value: string): Buffer => createHmac('sha256', key).update(value).digest();
 
-const messageConverter = (m: string): string[] => { 
-  const max_size = 4096;
-
-  const amount_sliced = m.length / max_size;
-  let start = 0;
-  let end = max_size;
-  let message;
-  const messagesArray = [];
-  for (let i = 0; i < amount_sliced; i++) {
-    message = m.slice(start, end);
-    messagesArray.push(message);
-    start = start + max_size;
-    end = end + max_size;
-  }
-
-  return messagesArray;
-}
-
 @Injectable()
 export class S3Service {
-  private readonly TelegramToken = process.env.TG_BOT_ID
-  private readonly TelegramGroupID = process.env.TG_GROUP_ID || '-4008140725'
-  private readonly bot = new Bot(this.TelegramToken)
-
   constructor() { }
 
   private async uploadToS3(body: Buffer, key: string, contentType: string): Promise<string | false> {
+    if (process.env.LOCAL_ONLY === 'true') return false;
     const accessKeyId = process.env.S3_ACCESS_KEY_ID;
     const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
     const bucket = process.env.S3_BUCKET;
@@ -88,7 +66,8 @@ export class S3Service {
   }
 
   async UploadMedia(file: UploadedMediaFile): Promise<string> {
-    const extension = path.extname(file.originalname).toLowerCase();
+    const extension = ({ 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/avif': '.avif', 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' } as Record<string, string>)[file.mimetype || ''];
+    if (!extension) throw new Error('Unsupported media type');
     const filename = `${Date.now()}-${randomUUID()}${extension}`;
     const mediaPath = path.join('media', filename);
 
@@ -109,34 +88,15 @@ export class S3Service {
   }
 
 
-  async UploadSettings(content: Record<string, string>) {
-    try {
-      const settingsFilename = 'settings.json';
-      const settingsPath = `settings/${settingsFilename}`;
-      const _content = JSON.stringify(content);
-
-      console.log(_content, content);
-
-      await rm(settingsPath, { force: true });
-
-      await mkdir('settings', { recursive: true });
-
-      await writeFile(settingsPath, _content);
-
-      messageConverter(_content).forEach(message => {
-        void this.bot.api.sendMessage({
-          chat_id: this.TelegramGroupID,
-          text: message,
-          parse_mode: 'HTML',
-        })
-      });
-
-      const file = await readFile(settingsPath);
-      const uploadStatus = await this.uploadToS3(file, settingsFilename, 'application/json');
-
-      return !!uploadStatus;
-    } catch {
-      return false;
-    }
+  async UploadSettings(content: Record<string, unknown>) {
+    const serialized = JSON.stringify(content);
+    const temporaryPath = `settings/.settings-${randomUUID()}.tmp`;
+    // Publish first: a failed remote write must not report a successful save.
+    const remoteSaved = await this.uploadToS3(Buffer.from(serialized), 'settings.json', 'application/json');
+    if (process.env.LOCAL_ONLY !== 'true' && !remoteSaved) throw new Error('Settings upload is not configured');
+    await mkdir('settings', { recursive: true });
+    await writeFile(temporaryPath, serialized);
+    await rename(temporaryPath, 'settings/settings.json');
+    return true;
   }
 }

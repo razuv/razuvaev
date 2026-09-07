@@ -4,6 +4,7 @@ import { fetchData } from './utils/api';
 import UiHeader from './components/ui/ui-header/UiHeader.vue';
 
 const isLoading = ref<boolean>(true);
+const loadError = ref<string>('');
 
 const reloadApplication = () => {
   isLoading.value = true;
@@ -13,13 +14,19 @@ const reloadApplication = () => {
 };
 
 onMounted(async () => {
-  await fetchData();
-  isLoading.value = false;
+  try {
+    await fetchData();
+  } catch(error) {
+    loadError.value = error instanceof Error ? error.message : 'Failed to load website';
+  } finally {
+    isLoading.value = false;
+  }
 });
 </script>
 
 <template>
-  <div class="layout" v-if="!isLoading">
+  <p v-if="loadError" class="load-error">{{loadError}}</p>
+  <div class="layout" v-else-if="!isLoading">
     <UiHeader
       @on-change-language="reloadApplication"
     />
@@ -31,26 +38,17 @@ onMounted(async () => {
 @import './assets/styles/main.scss';
 
 .layout {
-  padding: 0 $padding-xl;
-  max-width: $size-xl;
   width: 100%;
-
+  max-width: 1440px;
+  container: page / inline-size;
   margin: 0 auto;
+}
 
-  @media screen and (max-width: $container-width-xl) {
-    max-width: $size-lg;
-  }
-
-  @media screen and (max-width: $container-width-lg) {
-    max-width: $size-md;
-  }
-
-  @media screen and (max-width: $container-width-md) {
-    max-width: $size-sm;
-  }
-
-  @media screen and (max-width: $container-width-sm) {
-    max-width: $size-xs;
-  }
+.load-error {
+  min-height: 100vh;
+  margin: 0;
+  padding: 32px;
+  color: #fff;
+  background: #000;
 }
 </style>

@@ -1,508 +1,64 @@
 <script setup lang="ts">
-import { SettingsType, getSettings, setSettings } from '@/api';
-import MediaInput from '@/components/MediaInput.vue';
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { getSettings, setSettings, type CaseBlock, type CaseBlockType, type SettingsType } from '@/api'
+import MediaInput from '@/components/MediaInput.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
-type ProjectDetails = SettingsType['projects'][number]['items'][number];
-
-const emptyProjectSetup = (iso: SettingsType['projects'][number]['iso']): SettingsType['projects'][number] => ({
-  iso,
-  items: []
-});
-
-// {
-//       rules: {
-//         nda: boolean;
-//         details: boolean;
-//       };
-//       info: {
-//         title: string;
-//         year: string;
-//         link: string;
-//         images: string[];
-//       };
-//       details: {
-//         theme: {
-//           background: string;
-//           textColor: string;
-//         };
-//         content: {
-//           iso: string;
-//           blocks: {
-//             title: string;
-//             text: string;
-//           }[];
-//         }[];
-//       }
-//     }
-
-const emptyProject = (): ProjectDetails => ({
-  rules: {
-    nda: true,
-    details: false,
-    syncMedia: true
-  },
-  info: {
-    title: '',
-    year: '',
-    link: '',
-    images: []
-  },
-  details: {
-    theme: {
-      background: '#000000',
-      textColor: '#FFFFFF'
-    },
-    content: []
-  }
-})
-
-const languages = ref<SettingsType['languages']>();
-const projects = ref<SettingsType['projects']>();
-
-const currentLanguage = ref<SettingsType['biography'][number]['iso']>();
-const currentProjects = ref<SettingsType['projects'][number]>();
-const currentProject = ref<ProjectDetails>();
-const isCurrentProjectDetailsOpen = ref<boolean>();
-const isProjectCreating = ref<boolean>();
-const isLoading = ref<boolean>();
-const draggedProjectIndex = ref<number | null>(null);
-
-const loadData = async () => {
-  const response = await getSettings(true);
-  languages.value = response.languages;
-  projects.value = response.projects;
-  response.projects.forEach(project => {
-    project.items.forEach(item => {
-      item.rules.syncMedia ??= true;
-    });
-  });
-
-  if(languages.value && languages.value.length > 0) {
-    openContent(languages.value[0].iso);
-  }
-}
-
-// const onSave = async () => {
-//   isLoading.value = true;
-
-//   if(!biography.value) {
-//     return alert('Системе не удалось получить информацию о биографии');
-//   }
-
-//   if(!currentBiography.value) {
-//     return alert('Системе не удалось получить информацию о выбранной биографии по языке');
-//   }
-
-//   const biographyCopy = [ ...biography.value ];
-//   const chosenBiographyIndex = biographyCopy.findIndex(b => b.iso === currentBiography.value?.iso);
-
-//   if(chosenBiographyIndex >= 0) {
-//     biographyCopy[chosenBiographyIndex] = { ...currentBiography.value };
-//     biography.value = biographyCopy;
-
-//     await setSettings('biography', biography.value);
-
-//     isLoading.value = false;
-//   }
-// }
-
-const onSave = async () => {
-  isLoading.value = true;
-
-  if(!currentProjects.value || !projects.value) {
-    alert('Системе не удалось получить открытый список проектов');
-    return;
-  }
-
-  const projectsCopy = [ ...projects.value ];
-  const chosenProjectIndex = projectsCopy.findIndex(p => p.iso === currentProjects.value?.iso);
-
-  if(chosenProjectIndex >= 0 && projectsCopy[chosenProjectIndex]) {
-    projectsCopy.forEach(project => {
-      if(project.iso === currentProjects.value?.iso) return;
-
-      currentProjects.value?.items.forEach((sourceProject, index) => {
-        if(project.items[index]) {
-          project.items[index].rules.syncMedia = sourceProject.rules.syncMedia !== false;
-          if(sourceProject.rules.syncMedia !== false) {
-            project.items[index].info.images = sourceProject.info.images.map(image => ({ ...image }));
-          }
-        }
-      });
-    });
-
-    projectsCopy[chosenProjectIndex] = currentProjects.value;
-    projects.value = projectsCopy;
-
-    await setSettings('projects', projects.value);
-
-    isLoading.value = false;
-  }
-};
-
-const openContent = (iso: SettingsType['languages'][number]['iso']) => {
-  const isProjectFound = projects.value?.find(b => b.iso === iso);
-
-  if(!isProjectFound) {
-    projects.value?.push(emptyProjectSetup(iso));
-  }
-
-  const chosenProject = projects.value?.find(b => b.iso === iso);
-  if(chosenProject) {
-    currentLanguage.value = iso;
-    currentProjects.value = { ...chosenProject };
-  }
-}
-
-const moveItem = (originalArray: unknown[], idx: number, direction: number) => {
-  function array_move(arr: unknown[], old_index: number, new_index: number) {
-    if (new_index >= arr.length) {
-        var k = new_index - arr.length + 1;
-        while (k--) {
-            arr.push(undefined);
-        }
-    }
-    arr.splice(new_index, 0, arr.splice(old_index, 1)[0]);
-    return arr;
-  };
-
-  originalArray = array_move(originalArray, idx, idx + direction);
-  return originalArray;
-}
-
-const deleteItem = (originalArray: unknown[], idx: number) => {
-  originalArray.splice(idx, 1);
-  return originalArray;
-}
-
-const onProjectDragStart = (index: number, event: DragEvent) => {
-  draggedProjectIndex.value = index;
-  if(event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-};
-
-const onProjectDrop = (targetIndex: number) => {
-  const sourceIndex = draggedProjectIndex.value;
-  draggedProjectIndex.value = null;
-
-  if(sourceIndex === null || sourceIndex === targetIndex || !currentProjects.value) return;
-
-  const [project] = currentProjects.value.items.splice(sourceIndex, 1);
-  currentProjects.value.items.splice(targetIndex, 0, project);
-
-  if(projects.value) {
-    projects.value.forEach(locale => {
-      if(locale.iso === currentLanguage.value || !locale.items[sourceIndex]) return;
-      const [localizedProject] = locale.items.splice(sourceIndex, 1);
-      locale.items.splice(targetIndex, 0, localizedProject);
-    });
-  }
-};
-
-const openProjectDetails = (project: ProjectDetails | null, visibility: boolean): ProjectDetails => {
-  isProjectCreating.value = !project;
-  isCurrentProjectDetailsOpen.value = !!visibility;
-
-  if(!project) {
-    currentProject.value = emptyProject();
-  } else {
-    currentProject.value = project;
-  }
-
-  return currentProject.value;
-}
-
-const onUpdateProject = () => {
-  if(!currentProject.value) {
-    alert('Системе не удалось получить открытый проект или создать его');
-    return;
-  }
-
-  if(!currentProject.value.info.title) {
-    alert('Проект должен иметь название');
-    return;
-  }
-
-  if(!currentProject.value.info.images || (currentProject.value.info.images && currentProject.value.info.images.length <= 0)) {
-    alert('Проект должен иметь хотя бы одну картинку');
-    return;
-  }
-
-  if(!currentProjects.value) {
-    alert('Системе не удалось получить открытый список проектов');
-    return;
-  }
-  if(isProjectCreating.value) {
-    currentProjects.value.items.push(currentProject.value);
-  }
-  openProjectDetails(null, false);
-};
-
-onMounted(() => {
-  loadData();
-
-  // openProjectDetails(null, true);
-});
+type Project=SettingsType['projects'][number]['items'][number]
+const route=useRoute(),settings=ref<SettingsType>(),loading=ref(true),saving=ref(false),error=ref(''),selected=ref(0),draggedBlock=ref<number|null>(null),draggedMedia=ref<{block:number;media:number}|null>(null),draggedProject=ref<number|null>(null)
+const blockPickerOpen=ref(false),previewType=ref<CaseBlockType|null>(null)
+const saved=ref(false)
+const confirmation=ref<{title:string;description:string;action:()=>void}|null>(null)
+const types:{type:CaseBlockType;label:string}[]=[{type:'heading',label:'Подзаголовок'},{type:'carousel',label:'Карусель изображений'},{type:'video',label:'Видео'},{type:'image',label:'Одно изображение'},{type:'slides',label:'Слайды'},{type:'gallery',label:'Галерея'},{type:'text-image',label:'Текст + изображение'},{type:'numbers',label:'Числа'},{type:'text-text',label:'Текст + текст'},{type:'text',label:'Текст'},{type:'iframe',label:'IFrame (эмбед)'},{type:'team-thanks',label:'Команда и благодарность'},{type:'team',label:'Команда'},{type:'thanks',label:'Благодарность'}]
+const relapImages=['/media/201ae73f06-AxPUbHM.png','/media/e451bafff3-4jxEpQm.png','/media/9f122975ca-8c6ULR0.png','/media/9089d85d80-XgEdQ4u.png','/media/85ac7ea324-wAyClRG.png']
+const relapNumbers=[{value:'#1',text:'Native Advertising network in Russian Internet (2018)'},{value:'>600',text:'Creative promos and special projects designed'},{value:'12',text:"New advertising formats invented, 4 of them made it to production and formed most of Relap’s revenue"},{value:'3',text:'Designers developed from entry-level to senior level'}]
+const activeIso=computed(()=>String(route.query.lang||settings.value?.languages[0]?.iso||'en'))
+const locale=computed(()=>settings.value?.projects.find(item=>item.iso===activeIso.value)||settings.value?.projects[0])
+const project=computed(()=>locale.value?.items[selected.value])
+const newBlock=(type:CaseBlockType):CaseBlock=>({id:crypto.randomUUID(),type,title:types.find(item=>item.type===type)?.label||'',text:'',secondaryTitle:'',secondaryText:'',images:[],video:'',iframe:'',items:[]})
+const legacyBlocks=(item:Project):CaseBlock[]=>{const blocks:CaseBlock[]=[];const isRelap=(item.info.link||'').includes('relap.io')||/^(relap|релап)(\.io)?$/i.test(item.info.title);if(isRelap){['Brandbook','Website','AdRoom'].forEach(title=>blocks.push({...newBlock('carousel'),title,images:[...relapImages]}));blocks.push({...newBlock('numbers'),title:'Numbers',items:relapNumbers.map(number=>({...number}))})}else{const media=item.info.images.slice(1).map(image=>image.link);if(media.length)blocks.push({...newBlock('carousel'),title:'',images:media})}const copyBlocks=item.details.content.slice(1);for(let index=0;index<copyBlocks.length;index++){const content=copyBlocks[index],title=content.title.toLowerCase(),next=copyBlocks[index+1],isTeam=title.includes('team')||title.includes('команд');if(isTeam&&next&&(next.title.toLowerCase().includes('thank')||next.title.toLowerCase().includes('благодар'))){blocks.push({...newBlock('team-thanks'),title:content.title,text:content.text,secondaryTitle:next.title,secondaryText:next.text});index++;continue}blocks.push({...newBlock(title.includes('thank')||title.includes('благодар')?'thanks':isTeam?'team':'text'),title:content.title,text:content.text})}return blocks}
+const normalize=(item:Project)=>{item.rules={...item.rules,nda:item.rules.nda??false,details:item.rules.details??true,syncMedia:item.rules.syncMedia??true};item.info.images ||= [];if(!item.info.images.length)item.info.images.push({link:''});item.details.theme={...item.details.theme,background:item.details.theme.background||'#000000',textColor:item.details.theme.textColor||'#FFFFFF',accentColor:item.details.theme.accentColor||'#2FC1CB'};item.details.content ||= [];item.details.content[0] ||= {title:'',text:''};const isRelap=(item.info.link||'').includes('relap.io')||/^(relap|релап)(\.io)?$/i.test(item.info.title);item.details.industry ||= isRelap?'AdTech':item.details.content[0].title.split(',')[0]?.trim()||'';item.details.tags ||= isRelap?['Branding','Web','Product']:item.details.content[0].title.split(',').slice(1).map(tag=>tag.trim()).filter(Boolean);if(!item.details.blocks)item.details.blocks=legacyBlocks(item);for(const block of item.details.blocks){block.id ||= crypto.randomUUID();block.images ||= [];block.items ||= []}return item}
+const createProject=():Project=>normalize({rules:{nda:false,ndaPassword:'',details:true,syncMedia:true},info:{title:'',year:'',link:'',images:[{link:''}]},details:{industry:'',tags:[],theme:{background:'#000',textColor:'#fff',accentColor:'#2fc1cb'},content:[{title:'',text:''}],blocks:[]}})
+const load=async()=>{try{settings.value=await getSettings(true);settings.value.projects.forEach(group=>group.items.forEach(normalize));selected.value=0}catch(e){error.value=e instanceof Error?e.message:'Ошибка загрузки'}finally{loading.value=false}}
+watch(activeIso,()=>selected.value=0)
+const save=async()=>{if(!settings.value)return;saving.value=true;saved.value=false;error.value='';try{await setSettings('projects',settings.value.projects);saved.value=true}catch(e){error.value=e instanceof Error?e.message:'Ошибка сохранения'}finally{saving.value=false}}
+const addProject=()=>{if(!locale.value)return;locale.value.items.push(createProject());selected.value=locale.value.items.length-1}
+const askDelete=(title:string,description:string,action:()=>void)=>{confirmation.value={title,description,action}}
+const confirmDelete=()=>{confirmation.value?.action();confirmation.value=null}
+const removeProject=()=>{if(!locale.value||!project.value)return;const title=project.value.info.title||'Без названия';askDelete('Удалить кейс?',`Кейс «${title}» и все его блоки будут удалены.`,()=>{locale.value!.items.splice(selected.value,1);selected.value=Math.max(0,selected.value-1)})}
+const dropProject=(target:number)=>{if(!locale.value||draggedProject.value===null)return;const[item]=locale.value.items.splice(draggedProject.value,1);locale.value.items.splice(target,0,item);selected.value=target;draggedProject.value=null}
+const addBlock=(type:CaseBlockType)=>{project.value?.details.blocks?.push(newBlock(type));blockPickerOpen.value=false;previewType.value=null}
+const dropBlock=(target:number)=>{const blocks=project.value?.details.blocks;if(!blocks||draggedBlock.value===null)return;const[item]=blocks.splice(draggedBlock.value,1);blocks.splice(target,0,item);draggedBlock.value=null}
+const dropMedia=(blockIndex:number,target:number)=>{const images=project.value?.details.blocks?.[blockIndex].images;if(!images||draggedMedia.value?.block!==blockIndex)return;const[item]=images.splice(draggedMedia.value.media,1);images.splice(target,0,item);draggedMedia.value=null}
+const usesImages=(type:CaseBlockType)=>['carousel','image','slides','gallery','text-image'].includes(type)
+const previewHasMedia=(type:CaseBlockType)=>['carousel','video','image','slides','gallery','text-image','iframe'].includes(type)
+const previewHasTwoColumns=(type:CaseBlockType)=>['text-image','text-text','team-thanks'].includes(type)
+onMounted(load)
 </script>
-
 <template>
-  <VRow class="match-height" v-if="currentProjects">
-    <VCol cols="12" md="2">
-      <v-list v-if="projects" style="height: 100%">
-        <v-list-item title="Язык"></v-list-item>
-        <v-divider></v-divider>
-        <v-list-item
-          v-for="lang in languages"
-          :key="lang.iso"
-          link
-          :title="lang.name"
-          :active="lang.iso === currentLanguage"
-          :class="{
-            'text-error': !projects.find(b => b.iso === lang.iso)
-          }"
-          @click="openContent(lang.iso)"
-        />
-      </v-list>
-    </VCol>
-
-    <VCol cols="12" md="10">
-      <VCol class="d-flex" cols="12">
-        <VBtn class="ml-auto" color="success" variant="outlined" @click="onSave" :loading="isLoading">
-          Сохранить
-        </VBtn>
-      </VCol>
-
-      <VCol cols="12">
-        <VCard title="Проекты">
-          <VTable>
-            <thead>
-              <tr>
-                <th class="text-uppercase">
-                  Проект
-                </th>
-                <th class="text-uppercase">
-                  Общее медиа
-                </th>
-                <th class="text-uppercase">
-                  Действия
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(project, idx) in currentProjects.items"
-                :key="`${project.info.title}-${idx}`"
-                draggable="true"
-                class="project-row"
-                :class="{ 'project-row--dragging': draggedProjectIndex === idx }"
-                @dragstart="onProjectDragStart(idx, $event)"
-                @dragend="draggedProjectIndex = null"
-                @dragover.prevent
-                @drop.prevent="onProjectDrop(idx)"
-              >
-                <td>
-                  <div class="project-row__title">
-                    <VIcon icon="mdi-drag" size="20" />
-                    {{ project.info.title }}
-                  </div>
-                </td>
-                <td style="width: 150px">
-                  <VSwitch
-                    v-model="project.rules.syncMedia"
-                    class="project-row__media-switch"
-                    :aria-label="`Общее медиа для языков: ${project.info.title}`"
-                    hide-details
-                  />
-                </td>
-                <td style="width: 280px">
-                  <VBtn class="mr-1" size="small" color="warning" @click="openProjectDetails(project, true)">
-                    <VIcon icon="mdi-pen" />
-                  </VBtn>
-                  <VBtn size="small" color="error" @click="deleteItem(currentProjects.items, idx)">
-                    <VIcon icon="mdi-trash" />
-                  </VBtn>
-                </td>
-              </tr>
-            </tbody>
-          </VTable>
-
-          <VCardActions>
-            <VBtn
-              append-icon="mdi-plus"
-              variant="outlined"
-              class="mt-5"
-              @click="openProjectDetails(null, true)"
-            >
-              Добавить
-            </VBtn>
-          </VCardActions>
-        </VCard>
-      </VCol>
-    </VCol>
-  </VRow>
-
-  <VDialog v-model="isCurrentProjectDetailsOpen" maxWidth="740">
-    <VCard
-      v-if="currentProject"
-      class="pa-5"
-      :title="`${isProjectCreating ? 'Создание' : 'Редактирование'} проекта`"
-    >
-      <VRow class="px-5 mb-1">
-        <VCol>
-          <VTextField
-            label="Название *"
-            v-model="currentProject.info.title"
-          />
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1">
-        <VCol>
-          <VTextField
-            label="Год"
-            v-model="currentProject.info.year"
-          />
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1">
-        <VCol>
-          <VTextField
-            label="Ссылка"
-            v-model="currentProject.info.link"
-          />
-        </VCol>
-      </VRow>
-
-      <VRow
-        class="px-5 mb-1 align-center"
-        v-for="(image, image_idx) in currentProject.info.images"
-        :key="`image-project-${image_idx}`"
-      >
-        <VCol>
-          <MediaInput
-            v-model="image.link"
-            :label="`Медиа #${image_idx + 1} *`"
-          />
-        </VCol>
-
-        <VCol cols="2">
-          <VBtn color="error" @click="deleteItem(currentProject.info.images, image_idx)">
-            <VIcon icon="mdi-trash" />
-          </VBtn>
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1">
-        <VCol>
-          <VBtn variant="outlined" color="warning" class="mr-2" @click="currentProject.info.images.push({ link: '' })">
-            Добавить картинку
-          </VBtn>
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5">
-        <VCol>
-          <VSwitch v-model="currentProject.rules.nda" label="Защищен NDA"/>
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1">
-        <VCol>
-          <VSwitch v-model="currentProject.rules.details" label="Разрешено открыть детали"/>
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1">
-        <VCol cols="1">
-          <div style="width: 48px; height: 48px; border-radius: 8px;" :style="`background-color: ${currentProject.details.theme.background}`" />
-        </VCol>
-
-        <VCol cols="11">
-          <VTextField
-            label="Цвет фона"
-            v-model="currentProject.details.theme.background"
-          />
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1">
-        <VCol cols="1">
-          <div style="width: 48px; height: 48px; border-radius: 8px;" :style="`background-color: ${currentProject.details.theme.textColor}`" />
-        </VCol>
-
-        <VCol cols="11">
-          <VTextField
-            label="Цвет текста"
-            v-model="currentProject.details.theme.textColor"
-          />
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1 align-center" v-for="(content, content_idx) in currentProject.details.content">
-
-        <VCol cols="10">
-          <VTextField
-            label="Заголовок"
-            v-model="content.title"
-          />
-        </VCol>
-
-        <VCol cols="2">
-          <VBtn color="error" @click="deleteItem(currentProject.details.content, content_idx)">
-            <VIcon icon="mdi-trash" />
-          </VBtn>
-        </VCol>
-
-        <VCol cols="12" style="margin-top: -15px;">
-          <VTextarea
-            label="Текст"
-            v-model="content.text"
-          />
-        </VCol>
-      </VRow>
-
-      <VRow class="px-5 mb-1">
-        <VCol>
-          <VBtn variant="outlined" color="warning" class="mr-2" @click="currentProject.details.content.push({ title: '', text: '' })">
-            Добавить контент-блок
-          </VBtn>
-        </VCol>
-      </VRow>
-      
-      <VRow class="px-5 mb-1">
-        <VCol>
-          <VBtn variant="outlined" color="success" class="mr-2" @click="onUpdateProject">
-            {{ isProjectCreating ? 'Создать' : 'Обновить' }}
-          </VBtn>
-        </VCol>
-      </VRow>
-    </VCard>
-  </VDialog>
+  <p v-if="loading" class="status">Загрузка…</p><p v-else-if="!project" class="status">{{error||'Нет кейсов для этого языка'}}</p>
+  <div v-else class="cases">
+    <div class="cases-toolbar"><div><strong>Кейсы</strong><span>{{project.info.title||'Без названия'}}</span></div><div><button class="pill pill--outline" @click="addProject">Добавить кейс +</button><button class="pill pill--light" :disabled="saving" @click="save">{{saving?'Сохраняю…':'Сохранить'}}</button></div></div>
+    <p v-if="error" class="status status--error" role="alert">{{error}}</p><p v-else-if="saved" class="status" role="status">Сохранено. Обновите страницу сайта, чтобы увидеть изменения.</p>
+    <div class="cases-layout">
+      <aside class="case-list"><h2 class="section-title">Проекты</h2><button v-for="(item,index) in locale?.items" :key="index" class="case-list__item" :class="{'case-list__item--active':selected===index}" draggable="true" @dragstart="draggedProject=index" @dragover.prevent @drop.prevent="dropProject(index)" @click="selected=index">{{item.info.title||'Без названия'}}</button><button class="text-button" @click="addProject">Добавить +</button></aside>
+      <div class="case-editor">
+        <section class="fixed-fields"><h2 class="section-title">Первый экран <button class="text-button danger" @click="removeProject">Удалить кейс</button></h2><div class="field-grid"><label class="field"><span>Заголовок</span><input v-model="project.info.title" class="control"></label><label class="field field--wide"><span>Описание</span><textarea v-model="project.details.content[0].text" class="control"></textarea></label><label class="field"><span>Отрасль</span><input v-model="project.details.industry" class="control" placeholder="AdTech"></label><label class="field"><span>Дополнительные теги через запятую</span><input class="control" :value="project.details.tags?.join(', ')" @input="project.details.tags=($event.target as HTMLInputElement).value.split(',').map(tag=>tag.trim()).filter(Boolean)"></label><label class="field"><span>Год</span><input v-model="project.info.year" class="control"></label><label class="field"><span>Ссылка</span><input v-model="project.info.link" class="control"></label><label class="field"><span>Изображение первого блока</span><MediaInput v-model="project.info.images[0].link" accept="image/*" preview/></label><label class="field"><span>Цвет фона</span><input v-model="project.details.theme.background" class="control" type="color"></label><label class="field"><span>Цвет текста</span><input v-model="project.details.theme.textColor" class="control" type="color"></label><label class="field"><span>Цвет акцента</span><input v-model="project.details.theme.accentColor!" class="control" type="color"></label><label class="toggle"><input v-model="project.rules.details" type="checkbox"><span>Открывать страницу кейса</span></label><label class="toggle"><input v-model="project.rules.nda" type="checkbox"><span>NDA</span></label><label v-if="project.rules.nda" class="field"><span>Пароль NDA</span><input v-model="project.rules.ndaPassword" class="control"></label></div></section>
+        <section class="blocks"><div class="blocks-head"><h2 class="section-title">Блоки кейса</h2><div class="block-picker"><button class="pill pill--outline block-picker__trigger" type="button" @click="blockPickerOpen=!blockPickerOpen">Добавить блок <img :src="'/assets/icons/icon-down.svg'" alt=""></button><div v-if="blockPickerOpen" class="block-picker__popover"><div class="block-picker__options"><button v-for="type in types" :key="type.type" type="button" @mouseenter="previewType=type.type" @focus="previewType=type.type" @click="addBlock(type.type)">{{type.label}}</button></div><aside v-if="previewType" class="block-preview" role="tooltip"><span>{{types.find(item=>item.type===previewType)?.label}}</span><div class="block-preview__canvas" :class="{'block-preview__canvas--two':previewHasTwoColumns(previewType)}"><template v-if="previewType==='numbers'"><i v-for="n in 4" :key="n" class="preview-number"><b>{{n===1?'#1':n}}</b><em/></i></template><template v-else-if="['carousel','slides','gallery'].includes(previewType)"><i v-for="n in 3" :key="n" class="preview-media"/></template><template v-else><div v-for="n in (previewHasTwoColumns(previewType)?2:1)" :key="n" class="preview-column"><i class="preview-title"/><i v-if="previewHasMedia(previewType)" class="preview-media preview-media--large"/><template v-else><i class="preview-line"/><i class="preview-line preview-line--short"/><i class="preview-line"/></template></div></template></div></aside></div></div></div>
+          <article v-for="(block,index) in project.details.blocks" :key="block.id" class="block" draggable="true" @dragstart="draggedBlock=index" @dragover.prevent @drop.prevent="dropBlock(index)"><header><strong>{{types.find(item=>item.type===block.type)?.label}}</strong><button class="text-button delete-button" @click="askDelete('Удалить блок?',`Блок «${types.find(item=>item.type===block.type)?.label}» будет удалён.`,()=>project!.details.blocks!.splice(index,1))">Удалить <img :src="'/assets/icons/icon-cross.svg'" alt=""></button></header>
+            <div class="block-fields"><label class="field"><span>Подзаголовок</span><input v-model="block.title" class="control"></label><label v-if="['text','text-image','text-text','team','thanks','team-thanks'].includes(block.type)" class="field"><span>Текст</span><textarea v-model="block.text" class="control"></textarea></label><label v-if="['text-text','team-thanks'].includes(block.type)" class="field"><span>Второй заголовок</span><input v-model="block.secondaryTitle" class="control"></label><label v-if="['text-text','team-thanks'].includes(block.type)" class="field"><span>Второй текст</span><textarea v-model="block.secondaryText" class="control"></textarea></label><label v-if="block.type==='iframe'" class="field"><span>URL IFrame</span><input v-model="block.iframe" class="control"></label><label v-if="block.type==='video'" class="field"><span>Видео</span><MediaInput v-model="block.video!" accept="video/*" preview/></label></div>
+            <div v-if="usesImages(block.type)" class="media-list"><div v-for="(_,mediaIndex) in block.images" :key="mediaIndex" class="media-row" draggable="true" @dragstart.stop="draggedMedia={block:index,media:mediaIndex}" @dragover.prevent @drop.stop.prevent="dropMedia(index,mediaIndex)"><MediaInput v-model="block.images![mediaIndex]" :label="'Изображение '+(mediaIndex+1)" accept="image/*,video/*" preview/><button class="text-button delete-button" @click="askDelete('Удалить изображение?','Изображение будет удалено из этого блока.',()=>block.images!.splice(mediaIndex,1))">Удалить <img :src="'/assets/icons/icon-cross.svg'" alt=""></button></div><button class="pill pill--outline" @click="block.images!.push('')">Добавить изображение +</button></div>
+            <div v-if="block.type==='numbers'" class="numbers-list"><div v-for="(item,numberIndex) in block.items" :key="numberIndex" class="number-row"><input v-model="item.value" class="control" placeholder="#1"><textarea v-model="item.text" class="control" placeholder="Описание"></textarea><button class="text-button delete-button" @click="askDelete('Удалить число?','Карточка числа будет удалена.',()=>block.items!.splice(numberIndex,1))">Удалить <img :src="'/assets/icons/icon-cross.svg'" alt=""></button></div><button class="pill pill--outline" @click="block.items!.push({value:'',text:''})">Добавить число +</button></div>
+          </article>
+        </section>
+      </div>
+    </div>
+    <ConfirmDialog :open="!!confirmation" :title="confirmation?.title||''" :description="confirmation?.description" @cancel="confirmation=null" @confirm="confirmDelete"/>
+  </div>
 </template>
-
-<style scoped lang="scss">
-.project-row {
-  cursor: grab;
-  transition: opacity 160ms ease, background-color 160ms ease;
-}
-
-.project-row:hover {
-  background: rgba(255, 255, 255, .04);
-}
-
-.project-row--dragging {
-  opacity: .35;
-}
-
-.project-row__title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.project-row__media-switch {
-  width: fit-content;
-  transform: scale(.78);
-  transform-origin: left center;
-}
+<style scoped>
+.cases-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.cases-toolbar>div{display:flex;align-items:center;gap:8px}.cases-toolbar span{color:#888}.cases-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:32px}.case-list__item{display:flex;width:100%;gap:8px;padding:6px 0;border:0;background:none;color:#888;text-align:left;cursor:grab;transition:color .16s ease,transform .16s ease}.case-list__item:hover{color:#fff;transform:translateX(3px)}.case-list__item--active{color:#fff}.case-editor{min-width:0}.danger{margin-left:auto;color:#ff8a80}.field-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.field--wide{grid-column:span 2}.toggle{display:flex;align-items:center;gap:8px}.toggle input{width:18px;height:18px}.blocks{margin-top:40px}.blocks-head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start}.block-picker{position:relative}.block-picker__trigger{gap:4px}.block-picker__trigger img{width:20px;height:20px}.block-picker__trigger:hover img{filter:invert(1)}.block-picker__popover{position:absolute;z-index:30;top:40px;right:0;display:flex;align-items:flex-start}.block-picker__options{width:240px;padding:8px;border-radius:8px;background:#1d1d1d;box-shadow:0 16px 48px rgba(0,0,0,.5)}.block-picker__options button{display:block;width:100%;padding:6px 8px;border:0;border-radius:4px;background:transparent;color:#fff;text-align:left;transition:background-color .14s ease}.block-picker__options button:hover,.block-picker__options button:focus-visible{background:#3a3a3a;outline:0}.block-preview{position:absolute;top:0;right:248px;width:260px;padding:12px;border-radius:8px;background:#303030;box-shadow:0 16px 48px rgba(0,0,0,.5)}.block-preview>span{display:block;margin-bottom:8px;color:#bbb;font-size:12px;line-height:20px}.block-preview__canvas{display:flex;gap:6px;min-height:128px;padding:12px;border-radius:6px;background:#eee}.block-preview__canvas--two .preview-column{width:50%}.preview-column{display:flex;flex:1;flex-direction:column;gap:6px}.preview-title{display:block;width:55%;height:8px;border-radius:2px;background:#151515}.preview-line{display:block;width:100%;height:5px;border-radius:2px;background:#999}.preview-line--short{width:75%}.preview-media{display:block;flex:1;min-width:0;border-radius:4px;background:#bbb}.preview-media--large{min-height:76px}.preview-number{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px;padding:5px;border-radius:4px;background:#2fc1cb}.preview-number b{color:#fff;font-size:12px;font-style:normal;font-weight:400}.preview-number em{width:80%;height:4px;border-radius:2px;background:rgba(255,255,255,.7)}.block{margin-bottom:16px;padding:16px;border-radius:8px;background:#111;cursor:grab}.block header{display:flex;align-items:center;gap:8px;margin-bottom:16px}.block header button{margin-left:auto}.block-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.media-list,.numbers-list{display:grid;gap:12px;margin-top:16px}.media-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;cursor:grab}.number-row{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:8px}.delete-button{display:inline-flex;align-items:center;gap:2px}.delete-button img{width:20px;height:20px}.status{color:#888}.status--error{color:#ff8a80}
+@media(max-width:1079px){.cases-layout{grid-template-columns:200px minmax(0,1fr)}.field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:719px){.cases-toolbar{align-items:flex-start;flex-direction:column;gap:16px}.cases-toolbar>div:last-child{width:100%}.cases-toolbar>div:last-child button{flex:1}.cases-layout{display:block}.case-list{margin-bottom:32px}.field-grid,.block-fields{grid-template-columns:1fr}.field--wide{grid-column:auto}.blocks-head{grid-template-columns:1fr}.block-picker,.block-picker__trigger{width:100%}.block-picker__popover{right:auto;left:0}.block-preview{display:none}.number-row{grid-template-columns:80px minmax(0,1fr)}.number-row button{grid-column:1/-1}.media-row{grid-template-columns:minmax(0,1fr)}.media-row button{grid-column:1}}
 </style>

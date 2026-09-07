@@ -32,7 +32,7 @@ const onClick = () => {
     }"
   >
     <div
-      v-if="(images.length > 0 && images.length < 2) || !gallery"
+      v-if="images.length > 0 && (images.length < 2 || !gallery)"
       class="ui-image-container one-picture-container"
     >
       <img
@@ -50,7 +50,7 @@ const onClick = () => {
     </div>
 
     <swiper
-      v-else
+      v-else-if="images.length > 1"
       :allow-touch-move="true"
       :slides-per-view="1"
       :modules="[Navigation, Pagination]"
@@ -128,7 +128,8 @@ const onClick = () => {
       @include transition((background-color, opacity));
 
       &:after {
-        font-size: 14px;
+        font-size: $font-size-h4;
+        line-height: $line-height-h4;
         color: $ui-white;
       }
 

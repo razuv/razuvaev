@@ -2,12 +2,14 @@ import { SettingsType } from "../types/api.types";
 
 let data: SettingsType;
 let language: SettingsType['languages'][number]['iso'] = localStorage.getItem('_razuvaev_language') || 'en';
-const settingsUrl = import.meta.env.VITE_SETTINGS_URL || 'https://razuvaev-admin-ng.website.yandexcloud.net/settings.json';
+const settingsUrl = import.meta.env.DEV
+  ? '/__settings'
+  : import.meta.env.VITE_SETTINGS_URL || 'https://razuvaev-admin-ng.website.yandexcloud.net/settings.json';
 const mediaBaseUrl = (import.meta.env.VITE_MEDIA_BASE_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net/api').replace(/\/$/, '');
 
 export const fetchData = async (): Promise<SettingsType> => {
   const timestamp = new Date().getTime();
-  const timestampHours = Math.floor(timestamp / (3600 * 1000));
+  const timestampHours = timestamp;
 
   const response = await fetch(`${settingsUrl}?v=${timestampHours}`);
 
@@ -43,21 +45,11 @@ export const getLanguageIso = () => {
 
 export const resolveMediaUrl = (link: string): string => {
   if(link.startsWith('/media/')) {
-    return `${mediaBaseUrl}${link}`;
+    return import.meta.env.VITE_USE_REMOTE_MEDIA === 'true' ? `${mediaBaseUrl}${link}` : link;
   }
 
   return link;
 }
 
-export const detectContentByLink = (link: string): 'image' | 'video' => {
-  const imagesMap = ['jpg', 'jpeg', 'png', 'gif', 'svg'];
-  let contentType: 'image' | 'video' = 'video';
-
-  imagesMap.forEach(image_type => {
-    if(link.includes(`.${image_type}`)) {
-      contentType = 'image';
-    };
-  });
-
-  return contentType;
-};
+export const detectContentByLink = (link = ''): 'image' | 'video' =>
+  /\.(?:mp4|webm|mov|m4v)(?:[?#]|$)/i.test(link) || /(?:vimeo\.com|youtube\.com|youtu\.be)/i.test(link) ? 'video' : 'image';

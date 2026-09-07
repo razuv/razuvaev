@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { richText } from "../../../utils/content";
 import { SettingsType } from '../../../types/api.types';
 
 import UiImage from '../ui-image/UiImage.vue';
@@ -28,7 +29,7 @@ const openLink = (link: string) => {
         class="ui-feed-item__image"
       />
 
-      <span class="ui-feed-item__text" v-html="f.text.replace(/(?:\r\n|\r|\n)/g, '<br />')" />
+      <span class="ui-feed-item__text" v-html="richText(f.text)" />
 
       <div class="ui-feed-item__icon" @click="openLink(f.link)">
         <ArrowLinkIcon />
