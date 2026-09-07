@@ -139,6 +139,7 @@ onUnmounted(() => contrastObserver?.disconnect());
 
       <div
         class="ui-header-language"
+        @mouseenter="isLanguageOpen = true"
         @mouseleave="isLanguageOpen = false"
         @keydown.esc="isLanguageOpen = false"
         @focusout="!($event.currentTarget as HTMLElement).contains($event.relatedTarget as Node) && (isLanguageOpen = false)"
@@ -150,7 +151,7 @@ onUnmounted(() => contrastObserver?.disconnect());
           aria-controls="language-options"
           :title="selectedLanguage.name"
           aria-label="Language"
-          @click="isLanguageOpen = !isLanguageOpen"
+          @mouseenter="isLanguageOpen = true"
         >
           <span class="ui-header-language__full-name">{{ selectedLanguage.name }}</span>
           <span class="ui-header-language__compact-name">{{ compactLanguageName(selectedIso) }}</span>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 import { SettingsType } from '../../../types/api.types';
 import { getLanguageIso } from '../../../utils/api';
 import { useRouter } from 'vue-router';
@@ -34,14 +34,16 @@ const routeToCard = () => {
   }
 }
 
-const unlockCard = () => {
+const unlockCard = async () => {
   if (!props.isNda) return;
   if (!props.ndaPassword || ndaCode.value === props.ndaPassword) {
     if (props.isDetails && (typeof props.index !== 'undefined')) routeToCard();
     return;
   }
+  ndaError.value = false;
+  await nextTick();
   ndaError.value = true;
-  window.setTimeout(() => { ndaError.value = false; }, 420);
+  window.setTimeout(() => { ndaError.value = false; }, 500);
 };
 
 const aboutText = computed<string>(() => {
@@ -81,6 +83,7 @@ const aboutText = computed<string>(() => {
       </template>
 
       <template #description>
+        <div v-if="isNda && ndaOpen" class="ui-card-image-nda-blur" aria-hidden="true" />
         <form
           v-if="isNda && ndaOpen"
           class="ui-card-image-nda-form"
@@ -89,7 +92,7 @@ const aboutText = computed<string>(() => {
           @click.stop
         >
           <input v-model="ndaCode" type="password" placeholder="Пароль" aria-label="Пароль NDA" autocomplete="off">
-          <button type="submit" aria-label="Открыть кейс"><img class="ui-card-image-nda-form__arrow" src="/assets/icons/icon-down.svg" alt=""></button>
+          <button type="submit" aria-label="Открыть кейс"><img src="/assets/icons/arrow-right-black.svg" alt=""></button>
         </form>
         <div
           v-if="isNda && !ndaOpen"
@@ -265,9 +268,18 @@ const aboutText = computed<string>(() => {
       input { width: 100px; height: 24px; border: 0; outline: 0; border-radius: 100px; padding: 0 8px; background: transparent; color: #fff; font: inherit; font-size: 14px; }
       input::placeholder { color: rgba(255, 255, 255, .8); }
       button { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; color: #000; cursor: pointer; display: grid; place-items: center; }
-      button img { width: 20px; height: 20px; filter: invert(1); }
-      button img.ui-card-image-nda-form__arrow { transform: rotate(-90deg); }
+      button img { width: 20px; height: 20px; }
       &--shake { animation: nda-shake .42s ease-in-out; }
+    }
+
+    &-nda-blur {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      border-radius: inherit;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: none;
     }
 
     &:hover {
@@ -320,9 +332,9 @@ const aboutText = computed<string>(() => {
 
 @keyframes nda-shake {
   0%, 100% { transform: translate(-50%, -50%); }
-  25% { transform: translate(calc(-50% - 5px), -50%); }
-  50% { transform: translate(calc(-50% + 5px), -50%); }
-  75% { transform: translate(calc(-50% - 3px), -50%); }
+  25% { transform: translate(calc(-50% - 7px), -50%); }
+  50% { transform: translate(calc(-50% + 7px), -50%); }
+  75% { transform: translate(calc(-50% - 4px), -50%); }
 }
 
 @container page (width < 720px) {

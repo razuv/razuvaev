@@ -66,7 +66,7 @@ onUnmounted(() => clearTimeout(resetTimer));
   <Teleport to="body">
     <div v-if="hovered" class="case-drag-cursor" aria-hidden="true"
       :style="{ left: x + 'px', top: y + 'px', transform: 'translate(-50%, -50%) rotate(' + angle + 'deg)' }">
-      <img src="/assets/icons/icon-down.svg" alt=""> {{ dragLabel }} <img src="/assets/icons/icon-down.svg" alt="">
+      <img src="/assets/icons/arrow-left-white.svg" alt=""> {{ dragLabel }} <img src="/assets/icons/arrow-right-white.svg" alt="">
     </div>
   </Teleport>
 </template>
@@ -74,12 +74,11 @@ onUnmounted(() => clearTimeout(resetTimer));
 .case-carousel { display:flex; gap:20px; width:100vw; margin-left:calc((100% - 100vw) / 2); overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; touch-action:pan-x pan-y; cursor:none; user-select:none; padding:0 calc(var(--case-grid-gutter,20px) + (100vw - 100%) / 2); height:300px; align-items:flex-start; }
 .case-carousel::-webkit-scrollbar { display:none; }
 .case-carousel:focus-visible { outline:2px solid currentColor; outline-offset:-2px; }
-.case-carousel__slide { flex:0 0 335px; height:100%; display:flex; align-items:flex-start; overflow:hidden; border-radius:8px; isolation:isolate; -webkit-mask-image:-webkit-radial-gradient(white, black); }
+.case-carousel__slide { flex:0 0 335px; height:100%; display:flex; align-items:flex-start; overflow:hidden; border-radius:8px; clip-path:inset(0 round 8px); isolation:isolate; -webkit-mask-image:-webkit-radial-gradient(white, black); }
 .case-carousel__slide:nth-child(even) { flex-basis:453px; }
-.case-carousel img, .case-carousel video, .case-carousel iframe { display:block; width:100%; height:100%; object-fit:contain; object-position:top center; border:0; border-radius:8px !important; overflow:hidden; pointer-events:none; }
+.case-carousel img, .case-carousel video, .case-carousel iframe { display:block; width:100%; height:100%; object-fit:contain; object-position:top center; border:0; border-radius:8px !important; clip-path:inset(0 round 8px); overflow:hidden; pointer-events:none; }
 .case-drag-cursor { position:fixed; z-index:1000; pointer-events:none; display:flex; align-items:center; height:32px; padding:0 8px; border-radius:1000px; background:rgba(0,0,0,.2); color:white; backdrop-filter:blur(8px); font-size:16px; line-height:24px; transition:transform .1s ease-out; }
-.case-drag-cursor img { width:20px; height:20px; transform:rotate(90deg); }
-.case-drag-cursor img:last-child { transform:rotate(-90deg); }
+.case-drag-cursor img { width:20px; height:20px; }
 @container page (width < 1080px) { .case-carousel { height:300px; } }
 @container page (width < 720px) { .case-carousel { height:320px; } .case-carousel__slide, .case-carousel__slide:nth-child(2) { flex-basis:320px; } }
 @media (pointer:coarse) { .case-carousel { cursor:auto; } .case-drag-cursor { display:none; } }
