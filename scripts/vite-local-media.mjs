@@ -27,12 +27,33 @@ export const localMediaPlugin = (frontendDirectory) => {
   const outputAssetsDirectory = resolve(frontendDirectory, 'dist/assets')
   const settingsFile = resolve(frontendDirectory, '../api/settings/settings.json')
 
-  const sendFile = (filePath, response, next) => {
+  const sendFile = (filePath, request, response, next) => {
     if(!existsSync(filePath) || !statSync(filePath).isFile()) return next()
 
+    const size = statSync(filePath).size
     response.setHeader('Content-Type', contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream')
     response.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
-    createReadStream(filePath).pipe(response)
+    response.setHeader('Accept-Ranges', 'bytes')
+    let start = 0, end = size - 1
+    if (request.headers.range) {
+      const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range)
+      if (!range || (!range[1] && !range[2])) {
+        response.writeHead(416, { 'Content-Range': `bytes */${size}` }); response.end(); return
+      }
+      start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]))
+      end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size) {
+        response.writeHead(416, { 'Content-Range': `bytes */${size}` }); response.end(); return
+      }
+      response.statusCode = 206
+      response.setHeader('Content-Range', `bytes ${start}-${end}/${size}`)
+    }
+    response.setHeader('Content-Length', end - start + 1)
+    if (request.method === 'HEAD') { response.end(); return }
+    const stream = createReadStream(filePath, { start, end })
+    stream.on('error', () => response.destroy())
+    response.on('close', () => stream.destroy())
+    stream.pipe(response)
   }
 
   return {
@@ -57,15 +78,15 @@ export const localMediaPlugin = (frontendDirectory) => {
           const filename = basename(pathname)
           if(!filename) return next()
           const localFile = resolve(mediaDirectory, filename)
-          if(existsSync(localFile)) return sendFile(localFile, response, next)
-          return sendFile(resolve(sharedMediaDirectory, filename), response, next)
+          if(existsSync(localFile)) return sendFile(localFile, request, response, next)
+          return sendFile(resolve(sharedMediaDirectory, filename), request, response, next)
         }
 
         if(pathname.startsWith('/assets/')) {
           const relativePath = pathname.slice('/assets/'.length)
           const filePath = resolve(sharedAssetsDirectory, relativePath)
           if(!filePath.startsWith(`${sharedAssetsDirectory}/`)) return next()
-          return sendFile(filePath, response, next)
+          return sendFile(filePath, request, response, next)
         }
 
         return next()

@@ -6,7 +6,7 @@ export let token: string;
 const settingsUrl = import.meta.env.DEV
   ? '/__settings'
   : import.meta.env.VITE_SETTINGS_URL || 'https://razuvaev-admin-ng.website.yandexcloud.net/settings.json';
-const baseUrl = (import.meta.env.DEV ? (import.meta.env.VITE_DEV_API_URL || 'http://127.0.0.1:3000') : (import.meta.env.VITE_API_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net')).replace(/\/$/, '');
+const baseUrl = (import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net')).replace(/\/$/, '');
 const mediaBaseUrl = (import.meta.env.VITE_MEDIA_BASE_URL || `${baseUrl}/api`).replace(/\/$/, '');
 
 export const resolveMediaUrl = (link: string): string => {
@@ -46,7 +46,7 @@ export const getSettings = async (forceReload?: boolean): Promise<SettingsType> 
   }
 
   const timestamp = new Date().getTime();
-  const response = await fetch(`${settingsUrl}?v=${timestamp}`);
+  const response = await fetch(`${settingsUrl}?v=${timestamp}`, { cache: 'no-store' });
 
   if(!response.ok) {
     throw new Error(`Failed to load settings: ${response.status}`);
@@ -83,16 +83,23 @@ export const setSettings = async <T extends keyof SettingsType, K extends typeof
 }
 
 export const checkTokenValidation = async (tokenPayload: string): Promise<boolean> => {
-  const response = await fetch(`${baseUrl}/api/token`, { headers: { Authorization: `Bearer ${tokenPayload}` } });
-
-  if(!response.ok) {
-    return false;
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/api/token`, {
+      headers: { Authorization: `Bearer ${tokenPayload.trim()}` },
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    throw new Error('Не удалось подключиться к API. Проверьте, что сервер запущен.');
   }
+
+  if(response.status === 401 || response.status === 403) return false;
+  if(!response.ok) throw new Error(`API недоступен (HTTP ${response.status}).`);
 
   const result = await response.json();
 
   if(!!result.isTokenValid) {
-    token = tokenPayload;
+    token = tokenPayload.trim();
     sessionStorage.setItem('razuvaev-admin-token', token);
   }
 

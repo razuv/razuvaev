@@ -70,18 +70,18 @@ onMounted(() => {
 
 .works-list {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: auto;
-  gap: 24px 20px;
+  gap: 20px;
   padding: 0 18px 48px;
 
   @container page (width < 1440px) {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     padding-inline: 16px;
   }
 
   @container page (width < 1080px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 0 14px 48px;
   }
 

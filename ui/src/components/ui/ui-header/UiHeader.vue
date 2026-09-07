@@ -139,24 +139,25 @@ onUnmounted(() => contrastObserver?.disconnect());
 
       <div
         class="ui-header-language"
-        @mouseenter="isLanguageOpen = true"
         @mouseleave="isLanguageOpen = false"
+        @keydown.esc="isLanguageOpen = false"
+        @focusout="!($event.currentTarget as HTMLElement).contains($event.relatedTarget as Node) && (isLanguageOpen = false)"
       >
         <button
           class="ui-header-language__trigger"
           type="button"
           :aria-expanded="isLanguageOpen"
+          aria-controls="language-options"
           :title="selectedLanguage.name"
           aria-label="Language"
           @click="isLanguageOpen = !isLanguageOpen"
         >
           <span class="ui-header-language__full-name">{{ selectedLanguage.name }}</span>
           <span class="ui-header-language__compact-name">{{ compactLanguageName(selectedIso) }}</span>
-          <img src="/assets/icons/icon-down.svg" alt="" aria-hidden="true">
         </button>
 
         <Transition name="language-dropdown">
-        <div v-if="isLanguageOpen" class="ui-header-language-menu">
+        <div v-if="isLanguageOpen" id="language-options" class="ui-header-language-menu">
           <button
             v-for="language in languages.filter(item => item.iso !== selectedIso)"
             :key="language.iso"
@@ -188,7 +189,8 @@ onUnmounted(() => contrastObserver?.disconnect());
   color:inherit; font:inherit; cursor:pointer;
   span { color:inherit; font-size:16px; line-height:24px; white-space:nowrap; }
 }
-.ui-header-brand__logo { width:26px; height:26px; }
+.ui-header-brand__logo { width:24px; height:24px; }
+@container page (width >= 1440px) { .ui-header-brand__logo { width:20px; } }
 .ui-header--light-background .ui-header-brand__logo { filter:invert(1); }
 .ui-header-navigation { display:flex; align-items:center; gap:8px; }
 .ui-header-navigation > :nth-child(-n+3) { display:none; }
@@ -202,8 +204,8 @@ onUnmounted(() => contrastObserver?.disconnect());
   &:hover { background:#fff; color:#000; img { filter:invert(1); } }
   &:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
 }
-.ui-header-language { position:relative; width:52px; height:32px; }
-.ui-header-language__trigger { width:100%; }
+.ui-header-language { position:relative; width:32px; height:32px; }
+.ui-header-language__trigger { width:100%; padding:0; }
 .ui-header-language__trigger[aria-expanded="true"] img { transform:rotate(180deg); }
 .ui-header-language__full-name, .ui-header-language-menu__full-name { display:none; }
 .ui-header-language__compact-name, .ui-header-language-menu__compact-name { color:inherit; font-size:12px; line-height:20px; }
@@ -211,6 +213,7 @@ onUnmounted(() => contrastObserver?.disconnect());
 .language-dropdown-enter-active, .language-dropdown-leave-active { transition: opacity .16s ease, transform .16s ease; transform-origin: top center; }
 .language-dropdown-enter-from, .language-dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(.98); }
 .ui-header-language-menu__item { width:100%; }
+@container page (1080px <= width < 1440px) { .ui-header { padding-left:40px; } }
 @container page (width < 1080px) { .ui-header { height:72px; padding:20px 28px 20px 32px; } }
 @container page (width < 720px) {
   .ui-header { height:56px; padding:16px 16px 16px 18px; }
@@ -220,7 +223,7 @@ onUnmounted(() => contrastObserver?.disconnect());
   .ui-header-navigation__pill, .ui-header-language__trigger, .ui-header-language-menu__item {
     height:24px; font-size:12px; line-height:20px;
   }
-  .ui-header-language { width:48px; height:24px; }
+  .ui-header-language { width:24px; height:24px; }
   .ui-header-language-menu { gap:2px; padding-top:2px; }
 }
 </style>

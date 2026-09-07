@@ -89,12 +89,11 @@ const heroVideoUrl = computed(() => {
   const configured = editableHero.value?.video?.trim() || '/assets/hero-video.mp4';
   const normalized = /^(?:https?:)?\/\//i.test(configured) || configured.startsWith('/') ? configured : `/${configured}`;
   const source = heroVideoFallback.value ? '/assets/hero-video.mp4' : resolveMediaUrl(normalized);
-  // Bust stale CDN/browser responses after replacing the attached hero asset.
-  return source.startsWith('/') ? `${source}?v=20260907` : source;
+  return source;
 });
 const playHeroVideo = async () => {
   const video = heroVideo.value;
-  if(!video) return;
+  if(!video || video.ended) return;
   video.muted = true;
   video.defaultMuted = true;
   try { await video.play(); } catch { /* The browser will retry on canplay. */ }
@@ -132,6 +131,7 @@ const toggleCategory = (category: DesignCategory) => {
                 v-for="(item, index) in group.items"
                 :key="`${groupKey}-${index}`"
                 class="works-hero-proof__badge"
+                :class="{ 'works-hero-proof__badge--cyrillic': item.image.includes('cyrillic.png') }"
                 :href="item.link || group.link || undefined"
                 :target="item.link || group.link ? '_blank' : undefined"
                 rel="noreferrer"
@@ -146,15 +146,16 @@ const toggleCategory = (category: DesignCategory) => {
       </div>
 
       <div class="works-hero-portrait" aria-hidden="true">
-        <video ref="heroVideo" :src="heroVideoUrl" autoplay muted loop playsinline preload="auto" @canplay="playHeroVideo" @error="handleHeroVideoError" />
+        <video ref="heroVideo" :src="heroVideoUrl" autoplay muted playsinline preload="auto" @canplay="playHeroVideo" @error="handleHeroVideoError" />
       </div>
     </section>
 
-    <div class="works-categories" aria-label="Design categories">
+    <nav class="works-categories" aria-label="Design categories">
       <button
         type="button"
         class="works-categories__button"
         :class="{ 'works-categories__button--active': activeCategories.length === 0 }"
+        :aria-pressed="activeCategories.length === 0"
         @click="activeCategories = []"
       >
         {{ categoryLabels[0] }}
@@ -165,12 +166,13 @@ const toggleCategory = (category: DesignCategory) => {
         type="button"
         class="works-categories__button"
         :class="{ 'works-categories__button--active': activeCategories.includes(category) }"
+        :aria-pressed="activeCategories.includes(category)"
         @click="toggleCategory(category)"
       >
         {{ categoryLabels[index + 1] || text.categories[index + 1] }}
         <span v-if="activeCategories.includes(category)" aria-hidden="true">×</span>
       </button>
-    </div>
+    </nav>
 
     <WorksList :active-categories="activeCategories" />
   </main>
@@ -229,34 +231,11 @@ const toggleCategory = (category: DesignCategory) => {
     overflow: hidden;
     background: #000;
 
-    &::before,
-    &::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-
-    &::before {
-      z-index: 2;
-      background:
-        linear-gradient(to bottom, #000 0%, transparent 14%, transparent 82%, #000 100%),
-        linear-gradient(to right, #000 0%, transparent 17%, transparent 91%, #000 100%);
-    }
-
-    &::after {
-      z-index: 1;
-      background: rgba(90, 125, 155, .07);
-      mix-blend-mode: color;
-    }
-
     video {
       width: 100%;
       height: 100%;
       object-fit: cover;
       object-position: center 42%;
-      -webkit-mask-image: radial-gradient(ellipse 63% 72% at 61% 46%, #000 0 49%, rgba(0, 0, 0, .92) 62%, rgba(0, 0, 0, .42) 78%, transparent 100%);
-      mask-image: radial-gradient(ellipse 63% 72% at 61% 46%, #000 0 49%, rgba(0, 0, 0, .92) 62%, rgba(0, 0, 0, .42) 78%, transparent 100%);
     }
   }
 
@@ -297,12 +276,14 @@ const toggleCategory = (category: DesignCategory) => {
       height: 40px;
       margin-left: -4px;
       border-radius: 50%;
-      background: #f4f4f4;
+      background: transparent;
       color: #111;
       font-size: $font-size-h4;
       line-height: $line-height-h4;
       font-weight: 600;
       position: relative;
+      background: transparent;
+      z-index: 1;
       text-decoration: none;
       transition: transform .16s ease, z-index .16s ease;
 
@@ -313,11 +294,8 @@ const toggleCategory = (category: DesignCategory) => {
         object-fit: cover;
       }
 
-      &:nth-of-type(2) { background: #1689f8; color: #fff; }
-      &:nth-of-type(4) { background: #35bdc5; color: #fff; }
-      &:nth-of-type(5) { background: #5a0c86; color: #fff; }
+      &:hover, &:focus-visible { z-index: 3; transform: translateY(-2px); }
 
-      &:hover, &:focus-visible { z-index: 2; transform: translateY(-2px); }
     }
   }
 }
@@ -464,8 +442,6 @@ const toggleCategory = (category: DesignCategory) => {
 
       video {
         object-position: center 38%;
-        -webkit-mask-image: radial-gradient(ellipse 68% 77% at 50% 45%, #000 0 51%, rgba(0, 0, 0, .94) 64%, rgba(0, 0, 0, .4) 82%, transparent 100%);
-        mask-image: radial-gradient(ellipse 68% 77% at 50% 45%, #000 0 51%, rgba(0, 0, 0, .94) 64%, rgba(0, 0, 0, .4) 82%, transparent 100%);
       }
     }
 
@@ -512,8 +488,6 @@ const toggleCategory = (category: DesignCategory) => {
 
       video {
         object-position: center 38%;
-        -webkit-mask-image: radial-gradient(ellipse 68% 77% at 50% 45%, #000 0 51%, rgba(0, 0, 0, .94) 64%, rgba(0, 0, 0, .4) 82%, transparent 100%);
-        mask-image: radial-gradient(ellipse 68% 77% at 50% 45%, #000 0 51%, rgba(0, 0, 0, .94) 64%, rgba(0, 0, 0, .4) 82%, transparent 100%);
       }
     }
 
@@ -568,20 +542,51 @@ const toggleCategory = (category: DesignCategory) => {
 }
 /* Reference layouts: the page container, not the window, defines each step. */
 .works-hero { min-height:472px; }
-@container page (width >= 1440px) { .works-hero-copy { padding-left:134px; } }
+@container page (width >= 1440px) {
+  .works-hero-copy { padding-left:134px; }
+  .works-hero-copy h1 { transform:translateY(-8px); }
+}
 .works-categories { width:calc(100% - 40px); min-height:32px; margin:16px auto 40px; padding:0; justify-content:center; }
+@container page (width >= 1080px) {
+  .works-categories {
+    width:max-content;
+    max-width:calc(100% - 32px);
+    min-height:32px;
+    flex-wrap:nowrap;
+    top:24px;
+    isolation:isolate;
+    background:transparent;
+    backdrop-filter:none;
+  }
+  .works-categories::before {
+    content:'';
+    position:absolute;
+    inset:-8px;
+    z-index:-1;
+    border-radius:1000px;
+    background:rgba(0,0,0,.65);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+  }
+}
+@container page (width >= 1440px) {
+  .works-categories { margin-top:24px; margin-bottom:32px; }
+}
 @container page (width < 1440px) {
   .works-hero { min-height:352px; }
-  .works-hero-copy { padding:52px 0 0 20px; width:600px; }
+  .works-hero-copy { padding:56px 0 0 40px; width:600px; }
   .works-hero-copy p { max-width:520px; margin-top:24px; }
-  .works-hero-proof { width:calc(100cqw - 40px); margin-top:32px; }
+  .works-hero-proof { width:max-content; justify-content:flex-start; gap:76px; margin-top:32px; }
+}
+@container page (1080px <= width < 1440px) {
+  .works-hero-portrait { width:574px; height:323px; top:0; right:0; }
 }
 @container page (width < 1080px) {
   .works-hero { min-height:0; }
   .works-hero-copy { width:100%; padding:8px 20px 0; text-align:center; }
   .works-hero-copy h1 { width:100%; max-width:none; font-size:56px; line-height:56px; }
   .works-hero-copy p { max-width:none; margin-top:24px; }
-  .works-hero-proof { width:100%; margin-top:24px; }
+  .works-hero-proof { width:100%; justify-content:space-between; gap:0; margin-top:24px; }
   .works-categories { width:680px; margin:48px auto 26px; min-height:72px; }
 }
 @container page (width < 720px) {

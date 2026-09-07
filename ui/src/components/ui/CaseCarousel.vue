@@ -71,7 +71,7 @@ onUnmounted(() => clearTimeout(resetTimer));
   </Teleport>
 </template>
 <style scoped>
-.case-carousel { display:flex; gap:20px; width:100vw; margin-left:calc((100% - 100vw) / 2); overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; touch-action:pan-x pan-y; cursor:none; user-select:none; padding:0 var(--case-grid-gutter,20px); height:300px; align-items:flex-start; }
+.case-carousel { display:flex; gap:20px; width:100vw; margin-left:calc((100% - 100vw) / 2); overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; touch-action:pan-x pan-y; cursor:none; user-select:none; padding:0 calc(var(--case-grid-gutter,20px) + (100vw - 100%) / 2); height:300px; align-items:flex-start; }
 .case-carousel::-webkit-scrollbar { display:none; }
 .case-carousel:focus-visible { outline:2px solid currentColor; outline-offset:-2px; }
 .case-carousel__slide { flex:0 0 335px; height:100%; display:flex; align-items:flex-start; overflow:hidden; border-radius:8px; isolation:isolate; -webkit-mask-image:-webkit-radial-gradient(white, black); }

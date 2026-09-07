@@ -24,7 +24,8 @@ const router = createRouter({
 
 router.beforeEach(async to => {
   if(to.name === 'login') return true
-  return await restoreToken() ? true : { name: 'login' }
+  try { return await restoreToken() ? true : { name: 'login' } }
+  catch { return { name: 'login' } }
 })
 
 export default router

@@ -7,6 +7,7 @@ import { type CaseBlock, type SettingsType } from '../types/api.types'
 import UiImage from '../components/ui/ui-image/UiImage.vue'
 import CaseCarousel from '../components/ui/CaseCarousel.vue'
 import ArrowIcon from '../components/icons/ArrowIcon.vue'
+import LogoIcon from '../components/icons/LogoIcon.vue'
 import { caseLayouts } from '../data/case-layouts'
 
 const route=useRoute(),router=useRouter(),projects=ref<SettingsType['projects'][number]>(),currentProject=ref<SettingsType['projects'][number]['items'][number]>(),currentIndex=ref(-1)
@@ -39,14 +40,39 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
       <section v-else-if="block.type==='text'||block.type==='team'||block.type==='thanks'" :data-block-type="block.type" class="case-block contained copy"><h2 v-if="block.title">{{block.title}}</h2><p v-html="richText((block.text||''))"/></section>
       <section v-else-if="block.type==='iframe'" :data-block-type="block.type" class="case-block contained"><h2 v-if="block.title">{{block.title}}</h2><iframe class="embed" :src="embedSource(block.iframe)" sandbox="allow-scripts allow-popups" referrerpolicy="no-referrer" :title="block.title||'Embedded content'" loading="lazy"/></section>
     </template>
-    <nav class="case-navigation"><button v-if="previousProject" @click="router.push('/works/'+previousProject.index)"><ArrowIcon class="previous"/><span>{{previousProject.project.info.title}}</span></button><button aria-label="All projects" @click="router.push('/works')"><span class="grid-icon"><i v-for="n in 4" :key="n"/></span></button><button v-if="nextProject" @click="router.push('/works/'+nextProject.index)"><span>{{nextProject.project.info.title}}</span><ArrowIcon class="next"/></button></nav>
+    <nav class="case-navigation"><button v-if="previousProject" @click="router.push('/works/'+previousProject.index)"><ArrowIcon class="previous"/><span>{{previousProject.project.info.title}}</span></button><button class="case-home" aria-label="На главную" @click="router.push('/works')"><LogoIcon/></button><button v-if="nextProject" @click="router.push('/works/'+nextProject.index)"><span>{{nextProject.project.info.title}}</span><ArrowIcon class="next"/></button></nav>
   </main>
 </template>
 <style scoped lang="scss">
-.case{--case-grid-gutter:118px;min-height:100vh;padding:67px 0 20px}.case :is(h1,h2,p,span){color:inherit}.contained{margin-left:var(--case-grid-gutter);margin-right:var(--case-grid-gutter)}.case-hero{display:grid;grid-template-columns:minmax(0,1fr) 474px;gap:36px;align-items:center;margin-bottom:72px}.case-intro h1{overflow-wrap:anywhere;margin:0 0 24px;font-size:80px;line-height:80px;font-weight:400}.case-intro p,.copy p,.split p,.credits p{font-size:16px;line-height:24px}.case-cover{aspect-ratio:3/2;overflow:hidden;border-radius:8px}.case-cover :deep(.ui-image){width:100%;height:100%}.case-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.case-tags span{padding:4px 8px;border-radius:100px;background:rgba(0,0,0,.2);color:#fff;font-size:16px;line-height:24px}.case-tags span:first-child{background:var(--accent)}.case-block{margin-bottom:72px}.case-block h2{margin:0 0 24px;font-size:32px;line-height:40px;font-weight:400}.single-media,.embed{display:block;width:100%;border:0;border-radius:8px}.embed{min-height:60vh}.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.gallery img{display:block;width:100%;border-radius:8px}.split,.credits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}.numbers{margin-top:104px}.numbers-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:start}.numbers article{padding:16px;border-radius:8px;background:var(--accent);color:#fff}.numbers strong{display:block;margin-bottom:8px;font-size:56px;line-height:56px;font-weight:400}.numbers p{font-size:16px;line-height:24px;opacity:.8}.case-navigation{display:flex;justify-content:center;gap:8px;margin:48px 20px 0}.case-navigation button{display:flex;align-items:center;justify-content:center;gap:4px;height:32px;padding:0 8px;border:0;border-radius:100px;background:rgba(0,0,0,.3);color:#fff;backdrop-filter:blur(8px);font-size:16px;line-height:24px}.case-navigation svg{width:12px;height:12px;color:inherit}.previous{transform:rotate(-90deg)}.next{transform:rotate(90deg)}.grid-icon{display:grid;grid-template-columns:repeat(2,5px);gap:3px;padding:2px}.grid-icon i{width:5px;height:5px;border:1px solid currentColor}
+.case{--case-grid-gutter:118px;min-height:100vh;padding:67px 0 20px}.case :is(h1,h2,p,span){color:inherit}.contained{margin-left:var(--case-grid-gutter);margin-right:var(--case-grid-gutter)}.case-hero{display:grid;grid-template-columns:minmax(0,1fr) 474px;gap:36px;align-items:center;margin-bottom:72px}.case-intro h1{overflow-wrap:anywhere;margin:0 0 24px;font-size:80px;line-height:80px;font-weight:400;letter-spacing:0}.case-intro p,.copy p,.split p,.credits p{font-size:16px;line-height:24px}.case-cover{aspect-ratio:3/2;overflow:hidden;border-radius:8px}.case-cover :deep(.ui-image){width:100%;height:100%}.case-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.case-tags span{padding:4px 8px;border-radius:100px;background:rgba(0,0,0,.2);color:#fff;font-size:16px;line-height:24px}.case-tags span:first-child{background:var(--accent)}.case-block{margin-bottom:72px}.case-block h2{margin:0 0 24px;font-size:32px;line-height:40px;font-weight:400;letter-spacing:0}.single-media,.embed{display:block;width:100%;border:0;border-radius:8px}.embed{min-height:60vh}.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.gallery img{display:block;width:100%;border-radius:8px}.split,.credits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}.numbers{margin-top:104px}.numbers-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:start}.numbers article{padding:16px;border-radius:8px;background:var(--accent);color:#fff}.numbers strong{display:block;margin-bottom:8px;font-size:56px;line-height:56px;font-weight:400}.numbers p{font-size:16px;line-height:24px;opacity:.8}.case-navigation{display:flex;justify-content:center;gap:8px;margin:48px 20px 0}.case-navigation button{display:flex;align-items:center;justify-content:center;gap:4px;height:32px;padding:0 8px;border:0;border-radius:100px;background:rgba(0,0,0,.3);color:#fff;backdrop-filter:blur(8px);font-size:16px;line-height:24px}.case-navigation svg{width:12px;height:12px;color:inherit}.previous{transform:rotate(-90deg)}.next{transform:rotate(90deg)}.grid-icon{display:grid;grid-template-columns:repeat(2,5px);gap:3px;padding:2px}.grid-icon i{width:5px;height:5px;border:1px solid currentColor}
 @container page (width < 1440px){.case{--case-grid-gutter:20px;padding-top:0}.case-hero{grid-template-columns:minmax(0,1fr) 428px;gap:28px;margin-right:44px}.case-intro h1{margin-bottom:16px;font-size:56px;line-height:56px}}
 @container page (width < 1080px){.case{padding-top:12px}.case-hero{display:flex;flex-direction:column-reverse;gap:32px;align-items:stretch;margin-right:20px;margin-bottom:40px}.case-block{margin-bottom:48px}.numbers-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.numbers{margin-top:80px}}
 @container page (width < 720px){.case{--case-grid-gutter:16px;padding-top:0;padding-bottom:12px}.case-hero{gap:20px;margin-bottom:32px}.case-intro h1{margin-bottom:8px;font-size:32px;line-height:40px}.case-intro p,.copy p,.split p,.credits p,.numbers p{font-size:12px;line-height:20px}.case-tags span{padding:2px 8px;font-size:12px;line-height:20px}.case-block{margin-bottom:32px}.case-block h2{margin-bottom:16px;font-size:24px;line-height:32px}.gallery,.split,.credits{grid-template-columns:1fr}.numbers{margin-top:48px}.numbers-grid{gap:20px}.numbers strong{font-size:32px;line-height:32px}.case-navigation{margin-top:24px}.case-navigation button{white-space:nowrap}}
 .video-embed{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#000}
 .case-block--full > h2.contained{margin-left:0;margin-right:0;padding-left:var(--case-grid-gutter);padding-right:var(--case-grid-gutter)}
+.case-navigation .case-home{width:32px;padding:4px}
+.case-navigation .case-home svg{width:24px;height:24px}
+
+/* Case references use fixed editorial grids at each breakpoint. */
+@container page (width >= 1440px) {
+  .case { width:1440px; margin-inline:auto; --case-grid-gutter:40px; }
+  .contained { margin-inline:40px; }
+  .case-hero {
+    grid-template-columns:repeat(12, minmax(0, 1fr));
+    gap:20px;
+  }
+  .case-intro { grid-column:1 / span 6; }
+  .case-cover { grid-column:8 / span 5; }
+}
+
+@container page (width >= 1080px) and (width < 1440px) {
+  .case { width:1080px; margin-inline:auto; --case-grid-gutter:40px; }
+  .contained { margin-inline:40px; }
+  .case-hero {
+    grid-template-columns:repeat(9, minmax(0, 1fr));
+    gap:20px;
+  }
+  .case-intro { grid-column:1 / span 5; }
+  .case-cover { grid-column:6 / span 4; }
+}
 </style>

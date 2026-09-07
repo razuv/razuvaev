@@ -6,3 +6,7 @@
 .section-title{display:flex;align-items:center;min-height:36px;margin:0 0 16px;border-bottom:1px solid #fff;font-size:16px;font-weight:400;line-height:24px}.section-title__lock{display:grid;width:32px;height:32px;margin-left:auto;place-items:center;border-radius:50%;background:#303030;font-size:13px}
 .text-button{padding:0;border:0;background:none;color:#fff;font-size:14px;line-height:20px;text-align:left;transition:opacity .16s ease,color .16s ease}.text-button:hover{opacity:.65;text-decoration:underline}.icon-button{display:grid;width:32px;height:32px;padding:6px;place-items:center;border:0;border-radius:50%;background:#303030;transition:background-color .16s ease,transform .16s ease}.icon-button:hover{background:#4a4a4a}.icon-button:active{transform:scale(.94)}.icon-button img{display:block;width:20px;height:20px}
 @media(max-width:719px){.field>span{font-size:14px;line-height:20px}.control{font-size:14px;line-height:20px}}
+#app{width:360px;max-width:100%;margin-inline:auto}
+@media(min-width:720px){#app{width:720px}}
+@media(min-width:1080px){#app{width:1080px}}
+@media(min-width:1440px){#app{width:1440px}}

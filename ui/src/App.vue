@@ -6,11 +6,16 @@ import UiHeader from './components/ui/ui-header/UiHeader.vue';
 const isLoading = ref<boolean>(true);
 const loadError = ref<string>('');
 
-const reloadApplication = () => {
+const reloadApplication = async () => {
   isLoading.value = true;
-  setTimeout(() => {
+  loadError.value = '';
+  try {
+    await fetchData();
+  } catch(error) {
+    loadError.value = error instanceof Error ? error.message : 'Failed to load website';
+  } finally {
     isLoading.value = false;
-  }, 0)
+  }
 };
 
 onMounted(async () => {
@@ -38,11 +43,15 @@ onMounted(async () => {
 @import './assets/styles/main.scss';
 
 .layout {
-  width: 100%;
-  max-width: 1440px;
+  width: 360px;
+  max-width: 100%;
   container: page / inline-size;
   margin: 0 auto;
 }
+
+@media (min-width: 720px) { .layout { width:720px; } }
+@media (min-width: 1080px) { .layout { width:1080px; } }
+@media (min-width: 1440px) { .layout { width:1440px; } }
 
 .load-error {
   min-height: 100vh;

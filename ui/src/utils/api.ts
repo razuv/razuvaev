@@ -4,14 +4,16 @@ let data: SettingsType;
 let language: SettingsType['languages'][number]['iso'] = localStorage.getItem('_razuvaev_language') || 'en';
 const settingsUrl = import.meta.env.DEV
   ? '/__settings'
-  : import.meta.env.VITE_SETTINGS_URL || 'https://razuvaev-admin-ng.website.yandexcloud.net/settings.json';
+  : import.meta.env.VITE_SETTINGS_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net/api/settings';
 const mediaBaseUrl = (import.meta.env.VITE_MEDIA_BASE_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net/api').replace(/\/$/, '');
 
 export const fetchData = async (): Promise<SettingsType> => {
   const timestamp = new Date().getTime();
   const timestampHours = timestamp;
 
-  const response = await fetch(`${settingsUrl}?v=${timestampHours}`);
+  const response = await fetch(`${settingsUrl}?v=${timestampHours}`, {
+    cache: 'no-store',
+  });
 
   if(!response.ok) {
     throw new Error(`Failed to load settings: ${response.status}`);
