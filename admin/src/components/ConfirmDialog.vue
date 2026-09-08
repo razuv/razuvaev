@@ -1,6 +1,6 @@
 <script setup lang="ts">
-defineProps<{open:boolean;title:string;description?:string}>()
-defineEmits<{(event:'confirm'):void;(event:'cancel'):void}>()
+withDefaults(defineProps<{open:boolean;title:string;description?:string;confirmLabel?:string;secondaryLabel?:string}>(),{confirmLabel:'Удалить',secondaryLabel:''})
+defineEmits<{(event:'confirm'):void;(event:'secondary'):void;(event:'cancel'):void}>()
 </script>
 
 <template>
@@ -15,7 +15,8 @@ defineEmits<{(event:'confirm'):void;(event:'cancel'):void}>()
           <p v-if="description">{{description}}</p>
           <div class="confirm-actions">
             <button class="pill" type="button" @click="$emit('cancel')">Отмена</button>
-            <button class="pill pill--light confirm-delete" type="button" @click="$emit('confirm')">Удалить</button>
+            <button v-if="secondaryLabel" class="pill" type="button" @click="$emit('secondary')">{{secondaryLabel}}</button>
+            <button class="pill pill--light confirm-delete" type="button" @click="$emit('confirm')">{{confirmLabel}}</button>
           </div>
         </section>
       </div>

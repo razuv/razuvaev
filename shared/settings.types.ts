@@ -29,7 +29,12 @@ export interface SettingsType {
   }[];
   projects: {
     iso: string;
-    items: {
+    items: ProjectItem[];
+    archive?: ProjectItem[];
+  }[];
+};
+
+export interface ProjectItem {
       rules: {
         nda: boolean;
         ndaPassword?: string;
@@ -55,10 +60,8 @@ export interface SettingsType {
           text: string;
         }[];
         blocks?: CaseBlock[];
-      }
-    }[];
-  }[];
-};
+      };
+}
 
 export interface HeroProofGroup {
   label: string;
@@ -74,7 +77,7 @@ export interface HeroProofGroup {
 export type CaseBlockType =
   | 'heading' | 'carousel' | 'video' | 'image' | 'slides' | 'gallery'
   | 'text-image' | 'numbers' | 'text-text' | 'text' | 'iframe'
-  | 'team-thanks' | 'team' | 'thanks';
+  | 'team-thanks' | 'team' | 'thanks' | 'mentions';
 
 export interface CaseBlock {
   id: string;
@@ -86,5 +89,7 @@ export interface CaseBlock {
   images?: string[];
   video?: string;
   iframe?: string;
-  items?: { value: string; text: string }[];
+  items?: { value: string; text: string; image?: string; link?: string }[];
+  syncMedia?: boolean;
+  spacing?: number;
 }
