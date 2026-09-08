@@ -83,6 +83,11 @@ const hero = computed(() => ({
     ...editableHero.value?.featured,
   } as HeroProofGroup,
 }));
+const ruSubtitleParts = computed(() => {
+  const [beforeWith, afterWith = ''] = hero.value.subtitle.split(' с ');
+  const [beforeAnd, afterAnd = ''] = beforeWith.split(' и ');
+  return { beforeAnd, afterAnd, afterWith };
+});
 const heroVideo = ref<HTMLVideoElement>();
 const heroVideoFallback = ref(false);
 const heroVideoUrl = computed(() => {
@@ -121,7 +126,8 @@ const toggleCategory = (category: DesignCategory) => {
     <section class="works-hero">
       <div class="works-hero-copy">
         <h1>{{ hero.title }}</h1>
-        <p>{{ hero.subtitle }}</p>
+        <p v-if="language === 'ru'" class="works-hero-subtitle works-hero-subtitle--ru"><span>{{ruSubtitleParts.beforeAnd}}</span><span class="works-hero-subtitle__and"> и {{ruSubtitleParts.afterAnd}}</span><span v-if="ruSubtitleParts.afterWith" class="works-hero-subtitle__with"> с {{ruSubtitleParts.afterWith}}</span></p>
+        <p v-else>{{ hero.subtitle }}</p>
 
         <div class="works-hero-proof">
           <div v-for="(group, groupKey) in { worked: hero.worked, featured: hero.featured }" :key="groupKey" class="works-hero-proof-group">
@@ -580,6 +586,7 @@ const toggleCategory = (category: DesignCategory) => {
 }
 @container page (1080px <= width < 1440px) {
   .works-hero-portrait { width:574px; height:323px; top:0; right:0; }
+  .works-hero-subtitle__with { display:block; }
 }
 @container page (width < 1080px) {
   .works-hero { min-height:0; }
@@ -594,6 +601,8 @@ const toggleCategory = (category: DesignCategory) => {
   .works-hero-copy { padding:22px 16px 0; }
   .works-hero-copy h1 { width:100%; font-size:32px; line-height:32px; }
   .works-hero-copy p { margin-top:12px; }
+  .works-hero-subtitle { text-wrap:balance; }
+  .works-hero-subtitle__and { display:inline; }
   .works-hero-proof { flex-direction:row; justify-content:space-between; align-items:start; margin-top:22px; gap:0; }
   .works-hero-proof-row { flex-wrap:wrap; justify-content:center; }
   .works-hero-proof-group:first-child { width:116px; }

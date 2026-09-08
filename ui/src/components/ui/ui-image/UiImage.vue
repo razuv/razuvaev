@@ -127,27 +127,32 @@ const onClick = () => {
 
       @include transition((background-color, opacity));
 
+      & .swiper-navigation-icon { display:none; }
+
       &:after {
-        font-size: $font-size-h4;
-        line-height: $line-height-h4;
-        color: $ui-white;
+        width: 20px;
+        height: 20px;
+        font-size: 0;
+        line-height: 0;
+        content: '';
+        background: center / contain no-repeat;
       }
 
       &:hover {
         background-color: $ui-white;
 
-        &:after {
-          color: $ui-black;
-        }
+        &:after { filter: invert(1); }
       }
     }
 
     & .swiper-button-next {
       right: 8px;
+      &:after { background-image: url('/assets/icons/arrow-right-white.svg'); }
     }
 
     & .swiper-button-prev {
       left: 8px;
+      &:after { background-image: url('/assets/icons/arrow-left-white.svg'); }
     }
 
     & .swiper-pagination {

@@ -2,7 +2,7 @@
 import { richText, embedSource } from "../utils/content";
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getData, resolveMediaUrl } from '../utils/api'
+import { getData, getLanguageIso, resolveMediaUrl } from '../utils/api'
 import { type CaseBlock, type SettingsType } from '../types/api.types'
 import UiImage from '../components/ui/ui-image/UiImage.vue'
 import CaseCarousel from '../components/ui/CaseCarousel.vue'
@@ -18,13 +18,14 @@ const blocks=computed(()=>normalizeBlocks(currentProject.value?.details.blocks ?
 const videoEmbedUrl=(value:string)=>{if(/player\.vimeo\.com\/video\//i.test(value))return value;const vimeo=value.match(/(?:vimeo\.com\/|vimeo\.com\/video\/)(\d+)/i);if(vimeo)return`https://player.vimeo.com/video/${vimeo[1]}`;const youtube=value.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/i);return youtube?`https://www.youtube.com/embed/${youtube[1]}`:''}
 const isVideoEmbed=(value:string)=>!!videoEmbedUrl(value)
 const changeAppColor=(background='inherit',color='inherit')=>{const app=document.querySelector('#app') as HTMLElement|null;if(app){app.style.backgroundColor=background;app.style.color=color}}
-const adjacent=(direction:-1|1)=>{if(!projects.value)return;for(let i=currentIndex.value+direction;i>=0&&i<projects.value.items.length;i+=direction){if(projects.value.items[i].rules.details)return{project:projects.value.items[i],index:i}}}
+const adjacent=(direction:-1|1)=>{if(!projects.value)return;for(let i=currentIndex.value+direction;i>=0&&i<projects.value.items.length;i+=direction){if(projects.value.items[i].rules.details&&!projects.value.items[i].rules.nda)return{project:projects.value.items[i],index:i}}}
 const previousProject=computed(()=>adjacent(-1)),nextProject=computed(()=>adjacent(1))
-const load=()=>{projects.value=getData('projects') as SettingsType['projects'][number];const id=Number(route.params.id),project=projects.value.items[id];if(Number.isInteger(id)&&project?.rules.details){currentIndex.value=id;currentProject.value=project;changeAppColor(project.details.theme.background||'#000',project.details.theme.textColor||'#fff')}else router.push('/works')}
+const isLightBackground=computed(()=>{const hex=currentProject.value?.details.theme.background||'#000000';const normalized=hex.replace('#','');if(!/^[0-9a-f]{6}$/i.test(normalized))return false;const [r,g,b]=[0,2,4].map(offset=>parseInt(normalized.slice(offset,offset+2),16)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);return .2126*r+.7152*g+.0722*b>.45})
+const load=()=>{projects.value=getData('projects') as SettingsType['projects'][number];const id=Number(route.params.id),project=projects.value.items[id],hasNdaAccess=!project?.rules.nda||sessionStorage.getItem(`nda-access:${getLanguageIso()}:${id}`)==='granted';if(Number.isInteger(id)&&project?.rules.details&&hasNdaAccess){currentIndex.value=id;currentProject.value=project;changeAppColor(project.details.theme.background||'#000',project.details.theme.textColor||'#fff')}else{currentProject.value=undefined;router.replace('/works')}}
 watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor())
 </script>
 <template>
-  <main v-if="currentProject" class="case" :style="{backgroundColor:currentProject.details.theme.background||'#000',color:currentProject.details.theme.textColor||'#fff','--accent':currentProject.details.theme.accentColor||editorial?.accent||'#777'}">
+  <main v-if="currentProject" class="case" :class="{'case--light-background':isLightBackground}" :style="{backgroundColor:currentProject.details.theme.background||'#000',color:currentProject.details.theme.textColor||'#fff','--accent':currentProject.details.theme.accentColor||editorial?.accent||'#777'}">
     <section class="case-hero contained"><div class="case-intro"><h1>{{currentProject.info.title}}</h1><p v-if="currentProject.details.content[0]" v-html="richText(currentProject.details.content[0].text)"/><div v-if="currentProject.details.industry||currentProject.details.tags?.length" class="case-tags"><span v-if="currentProject.details.industry">{{currentProject.details.industry}}</span><span v-for="tag in currentProject.details.tags" :key="tag">{{tag}}</span></div><div v-else-if="editorial" class="case-tags"><span v-for="tag in editorial.tags" :key="tag">{{tag}}</span></div></div><div class="case-cover"><UiImage :images="currentProject.info.images.slice(0,1).map(image=>image.link)" :gallery="false" :always-on="true"/></div></section>
     <template v-for="block in blocks" :key="block.id">
       <section v-if="block.type==='heading'" :data-block-type="block.type" class="case-block contained"><h2>{{block.title}}</h2></section>
@@ -39,7 +40,7 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
       <section v-else-if="block.type==='text'||block.type==='team'||block.type==='thanks'" :data-block-type="block.type" class="case-block contained copy"><h2 v-if="block.title">{{block.title}}</h2><p v-html="richText((block.text||''))"/></section>
       <section v-else-if="block.type==='iframe'" :data-block-type="block.type" class="case-block contained"><h2 v-if="block.title">{{block.title}}</h2><iframe class="embed" :src="embedSource(block.iframe)" sandbox="allow-scripts allow-popups" referrerpolicy="no-referrer" :title="block.title||'Embedded content'" loading="lazy"/></section>
     </template>
-    <nav class="case-navigation"><button v-if="previousProject" @click="router.push('/works/'+previousProject.index)"><img src="/assets/icons/arrow-left-white.svg" alt=""/><span>{{previousProject.project.info.title}}</span></button><button class="case-home" aria-label="На главную" @click="router.push('/works')"><LogoIcon/></button><button v-if="nextProject" @click="router.push('/works/'+nextProject.index)"><span>{{nextProject.project.info.title}}</span><img src="/assets/icons/arrow-right-white.svg" alt=""/></button></nav>
+    <nav class="case-navigation"><button v-if="previousProject" @click="router.push('/works/'+previousProject.index)"><i class="case-navigation__arrow case-navigation__arrow--left"/><span>{{previousProject.project.info.title}}</span></button><button class="case-home" aria-label="На главную" @click="router.push('/works')"><LogoIcon/></button><button v-if="nextProject" @click="router.push('/works/'+nextProject.index)"><span>{{nextProject.project.info.title}}</span><i class="case-navigation__arrow case-navigation__arrow--right"/></button></nav>
   </main>
 </template>
 <style scoped lang="scss">
@@ -74,9 +75,13 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
   .case-intro { grid-column:1 / span 5; }
   .case-cover { grid-column:6 / span 4; }
 }
-.case-navigation button { background: color-mix(in srgb, currentColor 15%, transparent); color: inherit; cursor: pointer; transition: background-color .18s ease, transform .18s ease; }
-.case-navigation button:hover { background: color-mix(in srgb, currentColor 25%, transparent); }
+.case-navigation button { background:rgba(255,255,255,.15); color:#fff; cursor:pointer; transition:background-color .18s ease,color .18s ease,transform .18s ease; }
+.case--light-background .case-navigation button { background:rgba(0,0,0,.15); }
+.case-navigation button:hover { background:#fff; color:#000; }
 .case-navigation button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .case-navigation button:active { transform: scale(.96); }
 .case-navigation .previous,.case-navigation .next { transform: none; }
+.case-navigation__arrow { display:block; width:20px; height:20px; flex:none; background:currentColor; -webkit-mask:center / contain no-repeat; mask:center / contain no-repeat; }
+.case-navigation__arrow--left { -webkit-mask-image:url('/assets/icons/arrow-left-white.svg'); mask-image:url('/assets/icons/arrow-left-white.svg'); }
+.case-navigation__arrow--right { -webkit-mask-image:url('/assets/icons/arrow-right-white.svg'); mask-image:url('/assets/icons/arrow-right-white.svg'); }
 </style>

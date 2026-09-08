@@ -192,7 +192,6 @@ onUnmounted(() => contrastObserver?.disconnect());
 }
 .ui-header-brand__logo { width:24px; height:24px; }
 @container page (width >= 1440px) { .ui-header-brand__logo { width:20px; } }
-.ui-header--light-background .ui-header-brand__logo { filter:invert(1); }
 .ui-header-navigation { display:flex; align-items:center; gap:8px; }
 .ui-header-navigation > :nth-child(-n+3) { display:none; }
 .ui-header-navigation__pill, .ui-header-language__trigger, .ui-header-language-menu__item {

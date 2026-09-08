@@ -37,7 +37,10 @@ const routeToCard = () => {
 const unlockCard = async () => {
   if (!props.isNda) return;
   if (!props.ndaPassword || ndaCode.value === props.ndaPassword) {
-    if (props.isDetails && (typeof props.index !== 'undefined')) routeToCard();
+    if (props.isDetails && (typeof props.index !== 'undefined')) {
+      sessionStorage.setItem(`nda-access:${getLanguageIso()}:${props.index}`, 'granted');
+      routeToCard();
+    }
     return;
   }
   ndaError.value = false;
