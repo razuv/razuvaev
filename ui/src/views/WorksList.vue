@@ -13,11 +13,20 @@ const props = defineProps<{
 }>();
 
 const petProjectIndexes = new Set([0, 15, 18, 19, 20, 21, 23, 24, 26, 27, 28]);
+const categoryIds: DesignCategory[] = ['product', 'communication', 'web', 'event', 'art-direction', 'identity', 'pet'];
 
 const getProjectCategories = (projectIndex: number): DesignCategory[] => {
   const allData = getData() as SettingsType;
   const englishProject = allData.projects.find(project => project.iso === 'en')?.items[projectIndex];
   const current = projects.value?.items[projectIndex];
+  const localizedCategories = allData.biography.find(item => item.iso === projects.value?.iso)?.categories || [];
+  const selectedTags = current?.details.tags || [];
+  const configured = selectedTags
+    .map(tag => localizedCategories.findIndex(category => category.localeCompare(tag, undefined, { sensitivity: 'base' }) === 0))
+    .filter(index => index >= 0)
+    .map(index => categoryIds[index])
+    .filter((category): category is DesignCategory => Boolean(category));
+  if(configured.length) return [...new Set(configured)];
   const description = current?.details.tags?.length ? current.details.tags.join(', ').toLowerCase() : (englishProject?.details.content?.[0]?.title.toLowerCase() || '');
   const categories: DesignCategory[] = [];
 
