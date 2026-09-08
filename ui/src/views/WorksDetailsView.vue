@@ -63,6 +63,7 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
   }
   .case-intro { grid-column:1 / span 6; }
   .case-cover { grid-column:8 / span 5; }
+  .copy { width:670px; margin-left:auto; margin-right:auto; }
 }
 
 @container page (width >= 1080px) and (width < 1440px) {
@@ -74,6 +75,7 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
   }
   .case-intro { grid-column:1 / span 5; }
   .case-cover { grid-column:6 / span 4; }
+  .copy { width:546.6667px; margin-left:auto; margin-right:auto; }
 }
 .case-navigation button { background:rgba(255,255,255,.15); color:#fff; cursor:pointer; transition:background-color .18s ease,color .18s ease,transform .18s ease; }
 .case--light-background .case-navigation button { background:rgba(0,0,0,.15); }
