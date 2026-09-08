@@ -5,8 +5,8 @@ let settings: SettingsType;
 export let token: string;
 const settingsUrl = import.meta.env.DEV
   ? '/__settings'
-  : import.meta.env.VITE_SETTINGS_URL || 'https://razuvaev-admin-ng.website.yandexcloud.net/settings.json';
-const baseUrl = (import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net')).replace(/\/$/, '');
+  : import.meta.env.VITE_SETTINGS_URL || 'https://pfapi.razuvaev.tv/api/settings';
+const baseUrl = (import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || 'https://pfapi.razuvaev.tv')).replace(/\/$/, '');
 const mediaBaseUrl = (import.meta.env.VITE_MEDIA_BASE_URL || `${baseUrl}/api`).replace(/\/$/, '');
 
 export const resolveMediaUrl = (link: string): string => {

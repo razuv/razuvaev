@@ -94,9 +94,14 @@ export class S3Service {
     // Publish first: a failed remote write must not report a successful save.
     const remoteSaved = await this.uploadToS3(Buffer.from(serialized), 'settings.json', 'application/json');
     if (process.env.LOCAL_ONLY !== 'true' && !remoteSaved) throw new Error('Settings upload is not configured');
-    await mkdir('settings', { recursive: true });
-    await writeFile(temporaryPath, serialized);
-    await rename(temporaryPath, 'settings/settings.json');
+    try {
+      await mkdir('settings', { recursive: true });
+      await writeFile(temporaryPath, serialized);
+      await rename(temporaryPath, 'settings/settings.json');
+    } catch (error) {
+      if (!remoteSaved) throw error;
+      console.warn('Settings were published remotely, but the local container copy could not be updated', error);
+    }
     return true;
   }
 }

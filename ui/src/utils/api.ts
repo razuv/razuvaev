@@ -4,8 +4,8 @@ let data: SettingsType;
 let language: SettingsType['languages'][number]['iso'] = localStorage.getItem('_razuvaev_language') || 'en';
 const settingsUrl = import.meta.env.DEV
   ? '/__settings'
-  : import.meta.env.VITE_SETTINGS_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net/api/settings';
-const mediaBaseUrl = (import.meta.env.VITE_MEDIA_BASE_URL || 'https://bbafo00lvo6me2t4idr8.containers.yandexcloud.net/api').replace(/\/$/, '');
+  : import.meta.env.VITE_SETTINGS_URL || 'https://pfapi.razuvaev.tv/api/settings';
+const mediaBaseUrl = (import.meta.env.VITE_MEDIA_BASE_URL || 'https://pfapi.razuvaev.tv/api').replace(/\/$/, '');
 
 export const fetchData = async (): Promise<SettingsType> => {
   const timestamp = new Date().getTime();
