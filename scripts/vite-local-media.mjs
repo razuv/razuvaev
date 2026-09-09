@@ -94,10 +94,10 @@ export const localMediaPlugin = (frontendDirectory) => {
     },
     closeBundle() {
       mkdirSync(outputDirectory, { recursive: true })
-      cpSync(sharedMediaDirectory, outputDirectory, { recursive: true })
-      cpSync(mediaDirectory, outputDirectory, { recursive: true })
+      if(existsSync(sharedMediaDirectory)) cpSync(sharedMediaDirectory, outputDirectory, { recursive: true })
+      if(existsSync(mediaDirectory)) cpSync(mediaDirectory, outputDirectory, { recursive: true })
       mkdirSync(outputAssetsDirectory, { recursive: true })
-      cpSync(sharedAssetsDirectory, outputAssetsDirectory, { recursive: true })
+      if(existsSync(sharedAssetsDirectory)) cpSync(sharedAssetsDirectory, outputAssetsDirectory, { recursive: true })
     },
   }
 }
