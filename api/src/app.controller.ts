@@ -5,6 +5,7 @@ import { readFile } from 'fs/promises';
 import { basename, join } from 'path';
 import { AdminGuard, authorized } from './admin.guard.js';
 import { S3Service } from './s3/s3.service.js';
+import { getSettingsPath } from './storage-paths.js';
 
 interface UploadedMediaFile {
   buffer: Buffer;
@@ -29,7 +30,7 @@ export class AppController {
 
   @Get('/settings')
   async GetSettings() {
-    const settingsPath = join(process.cwd(), 'settings', 'settings.json');
+    const settingsPath = getSettingsPath();
     const settings = await readFile(settingsPath, 'utf8');
 
     return JSON.parse(settings);

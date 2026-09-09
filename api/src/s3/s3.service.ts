@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { getSettingsPath } from '../storage-paths.js';
 
 interface UploadedMediaFile {
   buffer: Buffer;
@@ -90,14 +91,16 @@ export class S3Service {
 
   async UploadSettings(content: Record<string, unknown>) {
     const serialized = JSON.stringify(content);
-    const temporaryPath = `settings/.settings-${randomUUID()}.tmp`;
+    const settingsPath = getSettingsPath();
+    const settingsDirectory = path.dirname(settingsPath);
+    const temporaryPath = path.join(settingsDirectory, `.settings-${randomUUID()}.tmp`);
     // Publish first: a failed remote write must not report a successful save.
     const remoteSaved = await this.uploadToS3(Buffer.from(serialized), 'settings.json', 'application/json');
     if (process.env.LOCAL_ONLY !== 'true' && !remoteSaved) throw new Error('Settings upload is not configured');
     try {
-      await mkdir('settings', { recursive: true });
+      await mkdir(settingsDirectory, { recursive: true });
       await writeFile(temporaryPath, serialized);
-      await rename(temporaryPath, 'settings/settings.json');
+      await rename(temporaryPath, settingsPath);
     } catch (error) {
       if (!remoteSaved) throw error;
       console.warn('Settings were published remotely, but the local container copy could not be updated', error);

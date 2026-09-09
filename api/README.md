@@ -18,6 +18,16 @@ npm run start:dev
 - `TG_BOT_ID`, `TG_GROUP_ID` — бот и чат для резервной отправки настроек;
 - `CORS_ORIGINS` — разрешённые origins через запятую;
 - `PORT` — порт API, по умолчанию `3000`.
+- `SETTINGS_PATH` — постоянный путь к рабочему `settings.json` вне Git-репозитория. Для запуска без Docker рекомендуется `/var/lib/razuvaev/settings.json`.
+
+Перед первым запуском с постоянным хранилищем создайте каталог и перенесите в него актуальные данные:
+
+```bash
+sudo install -d -o "$USER" -g "$USER" /var/lib/razuvaev
+cp settings/settings.json /var/lib/razuvaev/settings.json
+```
+
+После этого добавьте `SETTINGS_PATH=/var/lib/razuvaev/settings.json` в окружение процесса API. Обновления репозитория больше не будут заменять данные, сохранённые из админки.
 
 Docker-образ собирается командой `npm run docker:build`. Для публикации задайте полный адрес образа:
 
