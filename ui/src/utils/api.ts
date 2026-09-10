@@ -12,7 +12,8 @@ export const fetchData = async (): Promise<SettingsType> => {
   const timestamp = new Date().getTime();
   const timestampHours = timestamp;
 
-  const response = await fetch(`${settingsUrl}?lang=${encodeURIComponent(language)}&v=${timestampHours}`, {
+  // Keep all locales available: canonical case URLs use the English project titles.
+  const response = await fetch(`${settingsUrl}?v=${timestampHours}`, {
     cache: 'no-store',
   });
 

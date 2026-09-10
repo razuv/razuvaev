@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { SettingsType } from '../../../types/api.types';
 import { getLanguageIso } from '../../../utils/api';
 import { projectPath } from '../../../utils/project-links';
@@ -24,6 +24,25 @@ const props = defineProps<Props>();
 const ndaCode = ref('');
 const ndaError = ref(false);
 const ndaOpen = ref(false);
+const card = ref<HTMLElement>();
+const ndaFailed = ref(false);
+let errorTimer: ReturnType<typeof setTimeout> | undefined;
+const closeFailedPassword = () => {
+  if (!ndaFailed.value) return;
+  ndaOpen.value = false;
+  ndaFailed.value = false;
+  ndaError.value = false;
+  ndaCode.value = '';
+  clearTimeout(errorTimer);
+};
+const handleOutsidePointer = (event: PointerEvent) => {
+  if (event.target instanceof Node && !card.value?.contains(event.target)) closeFailedPassword();
+};
+onMounted(() => document.addEventListener('pointerdown', handleOutsidePointer, true));
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleOutsidePointer, true);
+  clearTimeout(errorTimer);
+});
 
 const openLink = (link: string) => {
   window.open(link);
@@ -44,10 +63,13 @@ const unlockCard = async () => {
     }
     return;
   }
+  ndaFailed.value = true;
+  clearTimeout(errorTimer);
   ndaError.value = false;
   await nextTick();
+  if (!ndaOpen.value) return;
   ndaError.value = true;
-  window.setTimeout(() => { ndaError.value = false; }, 500);
+  errorTimer = setTimeout(() => { ndaError.value = false; }, 500);
 };
 
 const aboutText = computed<string>(() => {
@@ -65,6 +87,8 @@ const aboutText = computed<string>(() => {
 
 <template>
   <div
+    ref="card"
+    @mouseleave="closeFailedPassword"
     class="ui-card"
     :class="{
       'ui-card--nda': isNda,
@@ -87,7 +111,10 @@ const aboutText = computed<string>(() => {
       </template>
 
       <template #description>
-        <div v-if="isNda && ndaOpen" class="ui-card-image-nda-blur" aria-hidden="true" />
+        <Transition name="nda-fade">
+          <div v-if="isNda && ndaOpen" class="ui-card-image-nda-blur" aria-hidden="true" />
+        </Transition>
+        <Transition name="nda-fade">
         <form
           v-if="isNda && ndaOpen"
           class="ui-card-image-nda-form"
@@ -95,9 +122,9 @@ const aboutText = computed<string>(() => {
           @submit.prevent="unlockCard"
           @click.stop
         >
-          <input v-model="ndaCode" type="password" placeholder="Пароль" aria-label="Пароль NDA" autocomplete="off">
-          <button type="submit" aria-label="Открыть кейс"><img src="/assets/icons/arrow-right-black.svg" alt=""></button>
+          <input v-model="ndaCode" type="password" placeholder="Пароль" aria-label="Пароль NDA" autocomplete="off" enterkeyhint="go" :aria-invalid="ndaFailed">
         </form>
+        </Transition>
         <div
           v-if="isNda && !ndaOpen"
           class="ui-card-image-about ui-card-image-nda"
@@ -271,8 +298,6 @@ const aboutText = computed<string>(() => {
 
       input { width: 100px; height: 24px; border: 0; outline: 0; border-radius: 100px; padding: 0 8px; background: transparent; color: #fff; font: inherit; font-size: 14px; }
       input::placeholder { color: rgba(255, 255, 255, .8); }
-      button { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; color: #000; cursor: pointer; display: grid; place-items: center; }
-      button img { width: 20px; height: 20px; }
       &--shake { animation: nda-shake .42s ease-in-out; }
     }
 
@@ -349,5 +374,12 @@ const aboutText = computed<string>(() => {
       line-height: $line-height-h4;
     }
   }
+}
+.nda-fade-enter-active, .nda-fade-leave-active { transition: opacity .2s ease; }
+.nda-fade-enter-from, .nda-fade-leave-to { opacity: 0; }
+.nda-fade-leave-active { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nda-fade-enter-active, .nda-fade-leave-active { transition: none; }
+  .ui-card-image-nda-form--shake { animation: none; }
 }
 </style>
