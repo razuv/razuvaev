@@ -75,7 +75,7 @@ onMounted(reloadApplication);
 
 <style scoped>
 .loading-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(0,0,0,.32);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff}
-.loading-status{display:grid;place-items:center;width:80px;height:80px;border-radius:50%;background:rgba(0,0,0,.22)}
+.loading-status{display:grid;place-items:center;width:80px;height:80px}
 .loading-logo{width:40px;height:40px;animation:loader-pulse 1.4s ease-in-out infinite}
 .loading-enter-active,.loading-leave-active{transition:opacity .22s ease}
 .loading-enter-from,.loading-leave-to{opacity:0}
@@ -85,6 +85,6 @@ onMounted(reloadApplication);
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .loading-error{min-height:0;max-width:min(420px,calc(100vw - 32px));padding:24px;border-radius:16px;overflow-wrap:anywhere;text-align:center;background:rgba(0,0,0,.75)}
 .loading-error button{margin-top:16px;padding:8px 16px;border:0;border-radius:24px;background:#fff;color:#000;font:inherit;cursor:pointer}
-@keyframes loader-pulse{0%,100%{opacity:.45;transform:scale(.94)}50%{opacity:1;transform:scale(1)}}
+@keyframes loader-pulse{0%,100%{opacity:.45}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.loading-logo{animation:none}.loading-enter-active,.loading-leave-active,.page-enter-active,.page-leave-active{transition:none}}
 </style>
