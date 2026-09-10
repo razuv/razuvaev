@@ -51,7 +51,7 @@ const translations = {
 };
 
 const text = computed(() => translations[selectedIso.value as keyof typeof translations] || translations.en);
-const isDetailsPage = computed(() => /^\/works\/\d+/.test(route.path));
+const isDetailsPage = computed(() => /^\/works\/[^/]+/.test(route.path));
 const selectedLanguage = computed(() => languages.find(language => language.iso === selectedIso.value) || languages[0] || { iso: 'en', name: 'English' });
 const compactLanguageName = (iso: LanguageIso) => ({ ru: '🇷🇺', en: '🇬🇧', sr: '🇷🇸' }[iso] || iso.toUpperCase());
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { projectIndex, projectPath } from '../utils/project-links';
 import { richText, embedSource } from "../utils/content";
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -33,7 +34,7 @@ const changeAppColor=(background='inherit',color='inherit')=>{const app=document
 const adjacent=(direction:-1|1)=>{if(!projects.value)return;for(let i=currentIndex.value+direction;i>=0&&i<projects.value.items.length;i+=direction){if(projects.value.items[i].rules.details&&!projects.value.items[i].rules.nda)return{project:projects.value.items[i],index:i}}}
 const previousProject=computed(()=>adjacent(-1)),nextProject=computed(()=>adjacent(1))
 const isLightBackground=computed(()=>{const hex=currentProject.value?.details.theme.background||'#000000';const normalized=hex.replace('#','');if(!/^[0-9a-f]{6}$/i.test(normalized))return false;const [r,g,b]=[0,2,4].map(offset=>parseInt(normalized.slice(offset,offset+2),16)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);return .2126*r+.7152*g+.0722*b>.45})
-const load=()=>{projects.value=getData('projects') as SettingsType['projects'][number];const id=Number(route.params.id),project=projects.value.items[id],hasNdaAccess=!project?.rules.nda||sessionStorage.getItem(`nda-access:${getLanguageIso()}:${id}`)==='granted';if(Number.isInteger(id)&&project?.rules.details&&hasNdaAccess){currentIndex.value=id;currentProject.value=project;changeAppColor(project.details.theme.background||'#000',project.details.theme.textColor||'#fff')}else{currentProject.value=undefined;router.replace('/works')}}
+const load=()=>{projects.value=getData('projects') as SettingsType['projects'][number];const id=projectIndex(String(route.params.id)),project=projects.value.items[id],hasNdaAccess=!project?.rules.nda||sessionStorage.getItem(`nda-access:${getLanguageIso()}:${id}`)==='granted';if(Number.isInteger(id)&&project?.rules.details&&hasNdaAccess){currentIndex.value=id;currentProject.value=project;if(route.path!==projectPath(id))router.replace(projectPath(id));changeAppColor(project.details.theme.background||'#000',project.details.theme.textColor||'#fff')}else{currentProject.value=undefined;router.replace('/works')}}
 watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor())
 </script>
 <template>
@@ -53,7 +54,7 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
       <section v-else-if="block.type==='text'||block.type==='team'||block.type==='thanks'" :data-block-type="block.type" class="case-block contained copy"><h2 v-if="block.title">{{block.title}}</h2><p v-html="richText((block.text||''))"/></section>
       <section v-else-if="block.type==='iframe'" :data-block-type="block.type" class="case-block contained"><h2 v-if="block.title">{{block.title}}</h2><iframe class="embed" :src="embedSource(block.iframe)" sandbox="allow-scripts allow-popups" referrerpolicy="no-referrer" :title="block.title||'Embedded content'" loading="lazy"/></section>
     </div>
-    <nav class="case-navigation"><button v-if="previousProject" class="case-navigation__previous" @click="router.push('/works/'+previousProject.index)"><i class="case-navigation__arrow case-navigation__arrow--left"/><span>{{previousProject.project.info.title}}</span></button><button class="case-home" aria-label="На главную" @click="router.push('/works')"><LogoIcon/></button><button v-if="nextProject" class="case-navigation__next" @click="router.push('/works/'+nextProject.index)"><span>{{nextProject.project.info.title}}</span><i class="case-navigation__arrow case-navigation__arrow--right"/></button></nav>
+    <nav class="case-navigation"><button v-if="previousProject" class="case-navigation__previous" @click="router.push(projectPath(previousProject.index))"><i class="case-navigation__arrow case-navigation__arrow--left"/><span>{{previousProject.project.info.title}}</span></button><button class="case-home" aria-label="На главную" @click="router.push('/works')"><LogoIcon/></button><button v-if="nextProject" class="case-navigation__next" @click="router.push(projectPath(nextProject.index))"><span>{{nextProject.project.info.title}}</span><i class="case-navigation__arrow case-navigation__arrow--right"/></button></nav>
   </main>
 </template>
 <style scoped lang="scss">

@@ -2,6 +2,7 @@
 import { computed, ref, nextTick } from 'vue';
 import { SettingsType } from '../../../types/api.types';
 import { getLanguageIso } from '../../../utils/api';
+import { projectPath } from '../../../utils/project-links';
 import { useRouter } from 'vue-router';
 
 import UiImage from '../ui-image/UiImage.vue';
@@ -30,7 +31,7 @@ const openLink = (link: string) => {
 
 const routeToCard = () => {
   if(props.isDetails && (typeof props.index !== 'undefined')) {
-    router.push(`/works/${props.index}`);
+    router.push(projectPath(props.index));
   }
 }
 
