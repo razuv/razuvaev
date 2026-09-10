@@ -1,3 +1,4 @@
+import { normalizeProjectCategories } from '../../../shared/project-categories';
 import { SettingsType } from "../types/api.types";
 
 let data: SettingsType;
@@ -20,6 +21,7 @@ export const fetchData = async (): Promise<SettingsType> => {
   }
 
   data = await response.json();
+  normalizeProjectCategories(data);
 
   if(!data.languages.some(item => item.iso === language) && data.languages[0]) {
     changeLanguage(data.languages[0].iso);

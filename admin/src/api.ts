@@ -1,3 +1,4 @@
+import { normalizeProjectCategories } from '../../shared/project-categories';
 import type { SettingsType } from '../../shared/settings.types';
 export type { SettingsType, Social, CaseBlock, CaseBlockType, HeroProofGroup } from '../../shared/settings.types';
 
@@ -53,6 +54,7 @@ export const getSettings = async (forceReload?: boolean): Promise<SettingsType> 
   }
 
   settings = await response.json() as SettingsType;
+  normalizeProjectCategories(settings);
 
   return settings;
 }

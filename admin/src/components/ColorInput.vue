@@ -29,5 +29,5 @@ const pick = (event: Event) => {
   </span>
 </template>
 <style scoped>
-.color-input{display:flex;flex-wrap:wrap;gap:8px;min-width:0}.color-input__picker{width:48px;flex:none;padding:4px}.color-input__hex{width:0;min-width:80px;flex:1;font-family:monospace}.color-input__hex[aria-invalid=true]{border-color:#ff8a80}.color-input small{width:100%;color:#ff8a80}
+.color-input{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px;min-width:0}.color-input__picker{height:40px;box-sizing:border-box;width:40px;flex:none;padding:4px}.color-input__hex{height:40px;box-sizing:border-box;width:0;min-width:80px;flex:1;font-family:monospace}.color-input__hex[aria-invalid=true]{border-color:#ff8a80}.color-input small{width:100%;color:#ff8a80}
 </style>
