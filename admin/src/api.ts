@@ -57,27 +57,37 @@ export const getSettings = async (forceReload?: boolean): Promise<SettingsType> 
   return settings;
 }
 
-export const setSettings = async <T extends keyof SettingsType, K extends typeof settings[T]>(key: T, data: K) => {
-  if(!settings) {
-    return alert('Данные о настройках неизвестны системе');
-  }
-
-  settings[key] = data;
-
-  const response = await fetch(`${baseUrl}/api/update`, {
-    method: "PUT",
+const putJson = async (path: string, body: unknown) => {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(settings)
+    body: JSON.stringify(body),
   });
 
   if(!response.ok) {
     throw new Error(`Failed to update settings: ${response.status}`);
   }
 
-  const saved = await response.json();
+  return response.json();
+}
+
+export const saveLanguages = async (languages: SettingsType['languages']) => {
+  const saved = await putJson('/api/languages', languages);
+  if (saved !== true) throw new Error('Не удалось сохранить настройки');
+  return saved;
+}
+
+export const saveBiography = async (biography: SettingsType['biography'][number]) => {
+  const saved = await putJson(`/api/biography/${encodeURIComponent(biography.iso)}`, biography);
+  if (saved !== true) throw new Error('Не удалось сохранить настройки');
+  return saved;
+}
+
+export const saveProjects = async (projects: SettingsType['projects'][number]) => {
+  const saved = await putJson(`/api/projects/${encodeURIComponent(projects.iso)}`, projects);
   if (saved !== true) throw new Error('Не удалось сохранить настройки');
   return saved;
 }

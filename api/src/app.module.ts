@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller.js';
-import { S3Module } from './s3/s3.module.js';
+import { MediaService } from './media/media.service.js';
+import { SettingsService } from './settings/settings.service.js';
 
 const config = {
   envFilePath: '.env',
@@ -12,10 +13,13 @@ const config = {
 @Module({
   imports: [
     ConfigModule.forRoot(config),
-    S3Module
   ],
   controllers: [
     AppController
+  ],
+  providers: [
+    MediaService,
+    SettingsService
   ],
 })
 

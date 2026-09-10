@@ -11,7 +11,7 @@ export const fetchData = async (): Promise<SettingsType> => {
   const timestamp = new Date().getTime();
   const timestampHours = timestamp;
 
-  const response = await fetch(`${settingsUrl}?v=${timestampHours}`, {
+  const response = await fetch(`${settingsUrl}?lang=${encodeURIComponent(language)}&v=${timestampHours}`, {
     cache: 'no-store',
   });
 

@@ -15,9 +15,9 @@ export default defineConfig({
     },
     proxy: {
       '/__settings': {
-        target: 'https://razuvaev-admin-ng.website.yandexcloud.net',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
-        rewrite: () => '/settings.json',
+        rewrite: () => '/api/settings',
       },
     },
   },

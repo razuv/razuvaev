@@ -1,11 +1,10 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Put, Res, UploadedFile, UseInterceptors, Headers, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Put, Query, Res, UploadedFile, UseInterceptors, Headers, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { readFile } from 'fs/promises';
 import { basename, join } from 'path';
 import { AdminGuard, authorized } from './admin.guard.js';
-import { S3Service } from './s3/s3.service.js';
-import { getSettingsPath } from './storage-paths.js';
+import { MediaService } from './media/media.service.js';
+import { SettingsService } from './settings/settings.service.js';
 
 interface UploadedMediaFile {
   buffer: Buffer;
@@ -20,8 +19,9 @@ export class AppController {
   }
 
   constructor(
-    private readonly s3Service: S3Service
-  ) {};
+    private readonly settingsService: SettingsService,
+    private readonly mediaService: MediaService
+  ) { }
 
   @Get('/token')
   async CheckTokenValidation(@Headers('authorization') authorization: string) {
@@ -29,11 +29,12 @@ export class AppController {
   };
 
   @Get('/settings')
-  async GetSettings() {
-    const settingsPath = getSettingsPath();
-    const settings = await readFile(settingsPath, 'utf8');
+  async GetSettings(@Query('lang') lang?: string) {
+    if (lang) {
+      return this.settingsService.getForLanguage(lang);
+    }
 
-    return JSON.parse(settings);
+    return this.settingsService.getAll();
   };
 
   @Get('/media/:filename')
@@ -59,20 +60,47 @@ export class AppController {
       throw new BadRequestException('Only image and video files are supported');
     }
 
-    const link = await this.s3Service.UploadMedia(file);
+    const link = await this.mediaService.save(file);
 
     return { link };
   };
 
-  @Put('/update')
-  @UseGuards(AdminGuard) 
-  async UploadSettings(@Headers('authorization') authorization: string, @Body() body) {
+  @Put('/languages')
+  @UseGuards(AdminGuard)
+  async UploadLanguages(@Headers('authorization') authorization: string, @Body() body) {
     this.requireAuth(authorization);
 
-    if (!body || !Array.isArray(body.languages) || !Array.isArray(body.biography) || !Array.isArray(body.projects)) {
-      throw new BadRequestException('Invalid settings');
+    if (!Array.isArray(body) || body.some(language => typeof language?.iso !== 'string' || typeof language?.name !== 'string')) {
+      throw new BadRequestException('Invalid languages');
     }
-    const status = await this.s3Service.UploadSettings(body);
-    return status;
+    this.settingsService.setLanguages(body);
+
+    return true;
+  }
+
+  @Put('/biography/:iso')
+  @UseGuards(AdminGuard)
+  async UploadBiography(@Headers('authorization') authorization: string, @Param('iso') iso: string, @Body() body) {
+    this.requireAuth(authorization);
+
+    if (!body || typeof body !== 'object' || body.iso !== iso) {
+      throw new BadRequestException('Invalid biography');
+    }
+    this.settingsService.setBiography(iso, body);
+
+    return true;
+  }
+
+  @Put('/projects/:iso')
+  @UseGuards(AdminGuard)
+  async UploadProjects(@Headers('authorization') authorization: string, @Param('iso') iso: string, @Body() body) {
+    this.requireAuth(authorization);
+
+    if (!body || !Array.isArray(body.items)) {
+      throw new BadRequestException('Invalid projects');
+    }
+    this.settingsService.setProjects(iso, body.items, body.archive);
+
+    return true;
   }
 }

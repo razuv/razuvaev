@@ -5,3 +5,6 @@ dist/
 *.local
 *.log
 *.tsbuildinfo
+
+api/settings/
+api/media/
