@@ -8,7 +8,12 @@ on:
 jobs:
   deploy:
     runs-on: friendly
+    env:
+      NODE_BIN: /home/friendly/.nvm/versions/node/v26.8.1/bin
     steps:
+      - name: Add node to PATH
+        run: echo "${NODE_BIN}" >> "$GITHUB_PATH"
+
       - name: Pull latest
         working-directory: /home/friendly/repo/razuvaev
         run: git pull --ff-only origin main

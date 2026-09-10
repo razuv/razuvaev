@@ -6,7 +6,7 @@
 - `admin` — панель управления контентом на Vue 3 и Vuetify;
 - `api` — NestJS API, публикующее настройки в Yandex Object Storage.
 
-## Требования
+### Требования
 
 - Node.js 26 (версия зафиксирована в `.nvmrc`);
 - npm 12;
