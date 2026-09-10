@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { SettingsType } from '../types/api.types';
 import { getData } from '../utils/api';
 import type { DesignCategory } from './WorksView.vue';
 
 import UiCard from '../components/ui/ui-card/UiCard.vue';
+
+const list = ref<HTMLElement>();
+const minimumHeight = ref(0);
 
 const projects = ref<SettingsType['projects'][number]>();
 
@@ -50,16 +53,34 @@ const visibleProjects = computed(() => {
       || props.activeCategories.some(category => getProjectCategories(index).includes(category)));
 });
 
+// Keep enough document height to prevent the browser clamping the current scroll.
+watch(() => props.activeCategories, () => {
+  if (list.value) minimumHeight.value = Math.max(0, window.innerHeight - list.value.getBoundingClientRect().top);
+}, { flush: 'pre' });
+
+const freezeLeavingCard = (element: Element) => {
+  const card = element as HTMLElement;
+  const { width, height } = card.getBoundingClientRect();
+  const left = card.offsetLeft;
+  const top = card.offsetTop;
+  Object.assign(card.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+};
+const clearLeavingCard = (element: Element) => {
+  const card = element as HTMLElement;
+  for (const property of ['left', 'top', 'width', 'height']) card.style.removeProperty(property);
+};
+
 onMounted(() => {
   projects.value = getData('projects') as SettingsType['projects'][number];
 });
 </script>
 
 <template>
-  <div class="works-list" v-if="projects">
+  <div ref="list" v-if="projects" :style="{ minHeight: `${minimumHeight}px` }">
+  <TransitionGroup tag="div" name="project" class="works-list" @before-leave="freezeLeavingCard" @after-leave="clearLeavingCard" @leave-cancelled="clearLeavingCard">
     <UiCard
       v-for="({ project, index: projectIndex }) in visibleProjects"
-      :key="project.info.title"
+      :key="projectIndex"
       :index="projectIndex"
       :title="project.info.title"
       :year="project.info.year"
@@ -71,6 +92,7 @@ onMounted(() => {
 
       class="works-list__card"
     />
+  </TransitionGroup>
   </div>
 </template>
 
@@ -78,6 +100,7 @@ onMounted(() => {
 @import '../assets/styles/main.scss';
 
 .works-list {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: auto;
@@ -102,5 +125,16 @@ onMounted(() => {
   &__card {
     overflow: hidden;
   }
+}
+</style>
+
+<style scoped>
+.project-move, .project-enter-active, .project-leave-active {
+  transition: opacity .2s ease, transform .24s ease;
+}
+.project-enter-from, .project-leave-to { opacity: 0; transform: translateY(6px) scale(.98); }
+.project-leave-active { position: absolute; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .project-move, .project-enter-active, .project-leave-active { transition: none; }
 }
 </style>

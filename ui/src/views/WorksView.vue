@@ -188,6 +188,7 @@ const toggleCategory = (category: DesignCategory) => {
 @import '../assets/styles/main.scss';
 
 .works-view {
+  overflow-anchor: none;
   position: relative;
 }
 

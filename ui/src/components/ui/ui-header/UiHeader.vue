@@ -3,6 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import LogoIcon from '../../icons/LogoIcon.vue';
+import LinkedinIcon from '../../icons/LinkedinIcon.vue';
+import TelegramIcon from '../../icons/TelegramIcon.vue';
 import { changeLanguage, getData, getLanguageIso } from '../../../utils/api';
 import { SettingsType } from '../../../types/api.types';
 
@@ -128,9 +130,11 @@ onUnmounted(() => contrastObserver?.disconnect());
         {{ text.bio }}
       </button>
       <a class="ui-header-navigation__pill" href="https://t.me/razuvaevtv" target="_blank" rel="noreferrer">TV</a>
-      <a class="ui-header-navigation__pill" href="https://www.linkedin.com/in/razuv/" target="_blank" rel="noreferrer">
-        LinkedIn
-        <img src="/assets/icons/icon-ext.svg" alt="" aria-hidden="true">
+      <a class="ui-header-navigation__pill ui-header-navigation__social" href="https://www.linkedin.com/in/razuv/" target="_blank" rel="noreferrer" aria-label="LinkedIn" title="LinkedIn">
+        <LinkedinIcon aria-hidden="true" />
+      </a>
+      <a class="ui-header-navigation__pill ui-header-navigation__social" href="https://t.me/razuvaev" target="_blank" rel="noreferrer" aria-label="Telegram" title="Telegram">
+        <TelegramIcon aria-hidden="true" />
       </a>
       <button class="ui-header-navigation__pill" type="button" @click="copyEmail">
         <img :src="isCopied ? '/assets/icons/icon-success.svg' : '/assets/icons/icon-copy.svg'" alt="" aria-hidden="true">
@@ -204,6 +208,10 @@ onUnmounted(() => contrastObserver?.disconnect());
   &:hover { background:#fff; color:#000; img { filter:invert(1); } }
   &:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
 }
+.ui-header-navigation__social {
+  width:32px; padding:0; flex:none;
+  svg { width:18px; height:18px; }
+}
 .ui-header-language { position:relative; width:32px; height:32px; }
 .ui-header-language__trigger { width:100%; padding:0; }
 .ui-header-language__trigger[aria-expanded="true"] img { transform:rotate(180deg); }
@@ -223,6 +231,7 @@ onUnmounted(() => contrastObserver?.disconnect());
   .ui-header-navigation__pill, .ui-header-language__trigger, .ui-header-language-menu__item {
     height:24px; font-size:12px; line-height:20px;
   }
+  .ui-header-navigation__social { width:24px; svg { width:14px; height:14px; } }
   .ui-header-language { width:24px; height:24px; }
   .ui-header-language-menu { gap:2px; padding-top:2px; }
 }
