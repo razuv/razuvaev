@@ -223,6 +223,8 @@ const toggleCategory = (category: DesignCategory) => {
       max-width: 780px;
       margin-top: 16px;
       color: #8f8f95;
+
+      span { color: inherit; }
       font-size: $font-size-h2;
       line-height: $line-height-h2;
     }
@@ -270,7 +272,7 @@ const toggleCategory = (category: DesignCategory) => {
 
     &__label {
       margin-right: 12px;
-      color: #e4e4e4;
+      color: #75797D;
       font-size: $font-size-h3;
       line-height: $line-height-h3;
       white-space: nowrap;
