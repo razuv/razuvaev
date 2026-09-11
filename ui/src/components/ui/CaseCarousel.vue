@@ -74,14 +74,13 @@ onUnmounted(() => clearTimeout(resetTimer));
 .case-carousel { --carousel-height:300px; display:flex; gap:20px; width:100vw; margin-left:calc((100% - 100vw) / 2); overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; touch-action:pan-x pan-y; cursor:none; user-select:none; padding:0 calc(var(--case-grid-gutter,20px) + (100vw - 100%) / 2); height:var(--carousel-height); align-items:flex-start; }
 .case-carousel::-webkit-scrollbar { display:none; }
 .case-carousel:focus-visible { outline:2px solid currentColor; outline-offset:-2px; }
-.case-carousel__slide { flex:0 0 335px; height:auto; max-height:var(--carousel-height); display:flex; align-items:flex-start; justify-content:center; overflow:hidden; border-radius:8px; clip-path:inset(0 round 8px); isolation:isolate; -webkit-mask-image:-webkit-radial-gradient(white, black); }
-.case-carousel__slide:nth-child(even) { flex-basis:453px; }
-.case-carousel img, .case-carousel video, .case-carousel iframe { display:block; width:auto; height:auto; max-width:100%; max-height:var(--carousel-height); object-fit:contain; object-position:top center; border:0; border-radius:8px !important; clip-path:inset(0 round 8px); overflow:hidden; pointer-events:none; }
+.case-carousel__slide { flex:0 0 453px; height:var(--carousel-height); max-height:var(--carousel-height); display:flex; align-items:flex-start; justify-content:center; overflow:hidden; border-radius:8px; clip-path:inset(0 round 8px); isolation:isolate; -webkit-mask-image:-webkit-radial-gradient(white, black); }
+.case-carousel img, .case-carousel video, .case-carousel iframe { display:block; width:100%; height:100%; max-width:100%; max-height:var(--carousel-height); object-fit:cover; object-position:top center; border:0; border-radius:8px !important; clip-path:inset(0 round 8px); overflow:hidden; pointer-events:none; }
 .case-carousel iframe { width:100%; aspect-ratio:16 / 9; }
 .case-drag-cursor { position:fixed; z-index:1000; pointer-events:none; display:flex; align-items:center; height:32px; padding:0 8px; border-radius:1000px; background:rgba(0,0,0,.2); color:white; backdrop-filter:blur(8px); font-size:16px; line-height:24px; transition:transform .1s ease-out; }
 .case-drag-cursor img { width:20px; height:20px; }
 @container page (width < 1080px) { .case-carousel { --carousel-height:300px; } }
-@container page (width < 720px) { .case-carousel { --carousel-height:320px; } .case-carousel__slide, .case-carousel__slide:nth-child(2) { flex-basis:320px; } }
+@container page (width < 720px) { .case-carousel { --carousel-height:320px; } .case-carousel__slide { flex-basis:320px; } }
 @media (pointer:coarse) { .case-carousel { cursor:auto; } .case-drag-cursor { display:none; } }
 @media (prefers-reduced-motion:reduce) { .case-drag-cursor { transition:none; transform:translate(-50%,-50%) !important; } }
 </style>
