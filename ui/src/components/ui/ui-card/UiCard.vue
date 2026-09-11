@@ -162,6 +162,7 @@ const aboutText = computed<string>(() => {
 @import '../../../assets/styles/main.scss';
 
 .ui-card {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   position: relative;

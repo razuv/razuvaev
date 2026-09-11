@@ -69,7 +69,7 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
 
 /* Case references use fixed editorial grids at each breakpoint. */
 @container page (width >= 1440px) {
-  .case { width:1440px; margin-inline:auto; --case-grid-gutter:40px; }
+  .case { width:100%; margin-inline:auto; --case-grid-gutter:40px; }
   .contained { margin-inline:40px; }
   .case-hero {
     grid-template-columns:repeat(12, minmax(0, 1fr));
@@ -81,7 +81,7 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
 }
 
 @container page (width >= 1080px) and (width < 1440px) {
-  .case { width:1080px; margin-inline:auto; --case-grid-gutter:40px; }
+  .case { width:100%; margin-inline:auto; --case-grid-gutter:40px; }
   .contained { margin-inline:40px; }
   .case-hero {
     grid-template-columns:repeat(9, minmax(0, 1fr));
@@ -106,4 +106,9 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
 @container page (width < 1080px){.case-block-slot{margin-bottom:48px}}
 @container page (width < 720px){.case-block-slot{margin-bottom:32px}.mentions{margin-inline:16px}.mentions__item{grid-template-columns:40px minmax(0,1fr) 24px}.mentions__logo{width:40px;height:40px}}
 .mentions__arrow{position:relative}.mentions__arrow::after{content:'';position:absolute;inset:2px;background:url('/assets/icons/icon-ext-white.svg') center/20px 20px no-repeat}.case--light-background .mentions__arrow::after{background-image:url('/assets/icons/icon-ext-black.svg')}
+
+.case { width:100%; min-width:0; }
+.case-intro,.case-cover,.case-block-slot,.numbers-grid,.numbers-grid article { min-width:0; }
+.numbers-grid article { max-width:100%; overflow-wrap:anywhere; }
+.numbers-grid--1 { grid-template-columns:minmax(0,1fr); }
 </style>

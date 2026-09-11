@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { SettingsType } from '../types/api.types';
 import { getData } from '../utils/api';
 import type { DesignCategory } from './WorksView.vue';
@@ -8,6 +8,10 @@ import UiCard from '../components/ui/ui-card/UiCard.vue';
 
 const list = ref<HTMLElement>();
 const minimumHeight = ref(0);
+const resizing = ref(false);
+let resizeObserver: ResizeObserver | undefined;
+let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+let lastWidth = 0;
 
 const projects = ref<SettingsType['projects'][number]>();
 
@@ -70,14 +74,33 @@ const clearLeavingCard = (element: Element) => {
   for (const property of ['left', 'top', 'width', 'height']) card.style.removeProperty(property);
 };
 
-onMounted(() => {
+onMounted(async () => {
   projects.value = getData('projects') as SettingsType['projects'][number];
+  await nextTick();
+  if (!list.value) return;
+  lastWidth = list.value.getBoundingClientRect().width;
+  resizeObserver = new ResizeObserver(([entry]) => {
+    const width = entry.contentRect.width;
+    if (Math.abs(width - lastWidth) < .5) return;
+    lastWidth = width;
+    resizing.value = true;
+    minimumHeight.value = 0;
+    // A re-entered card must not retain the pixel dimensions of its leaving state.
+    list.value?.querySelectorAll<HTMLElement>('.works-list__card:not(.project-leave-active)').forEach(clearLeavingCard);
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { resizing.value = false; }, 180);
+  });
+  resizeObserver.observe(list.value);
+});
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  clearTimeout(resizeTimer);
 });
 </script>
 
 <template>
   <div ref="list" v-if="projects" :style="{ minHeight: `${minimumHeight}px` }">
-  <TransitionGroup tag="div" name="project" class="works-list" @before-leave="freezeLeavingCard" @after-leave="clearLeavingCard" @leave-cancelled="clearLeavingCard">
+  <TransitionGroup tag="div" name="project" class="works-list" :class="{ 'works-list--resizing': resizing }" @before-enter="clearLeavingCard" @before-leave="freezeLeavingCard" @after-leave="clearLeavingCard" @leave-cancelled="clearLeavingCard">
     <UiCard
       v-for="({ project, index: projectIndex }) in visibleProjects"
       :key="projectIndex"
@@ -101,6 +124,8 @@ onMounted(() => {
 
 .works-list {
   position: relative;
+  width: 100%;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: auto;
@@ -118,11 +143,12 @@ onMounted(() => {
   }
 
   @container page (width < 720px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 0 12px 32px;
   }
 
   &__card {
+    min-width: 0;
     overflow: hidden;
   }
 }
@@ -133,6 +159,7 @@ onMounted(() => {
   transition: opacity .2s ease, transform .24s ease;
 }
 .project-enter-from, .project-leave-to { opacity: 0; transform: translateY(6px) scale(.98); }
+.works-list--resizing > .works-list__card { transition: none !important; }
 .project-leave-active { position: absolute; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .project-move, .project-enter-active, .project-leave-active { transition: none; }

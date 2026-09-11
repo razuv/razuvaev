@@ -56,3 +56,10 @@ body {
 #app {
   background-color: $ui-black;
 }
+
+// Give the inline-size query container a viewport-sized containing block.
+// Its width must not depend on the intrinsic width of case content.
+html, body, #app {
+  width: 100%;
+  min-width: 0;
+}

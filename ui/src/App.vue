@@ -54,15 +54,15 @@ onMounted(reloadApplication);
 @import './assets/styles/main.scss';
 
 .layout {
-  width: 360px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 1440px;
+  min-width: 0;
+  flex-shrink: 0;
   container: page / inline-size;
   margin: 0 auto;
 }
 
-@media (min-width: 720px) { .layout { width:720px; } }
-@media (min-width: 1080px) { .layout { width:1080px; } }
-@media (min-width: 1440px) { .layout { width:1440px; } }
+
 
 .loading-error {
   min-height: 100vh;
