@@ -1,8 +1,28 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { fetchData, getLanguageIso } from './utils/api';
 import UiHeader from './components/ui/ui-header/UiHeader.vue';
 import LogoIcon from './components/icons/LogoIcon.vue';
+import { pageWidthForViewport } from './utils/page-width';
+
+const pageWidth = ref(pageWidthForViewport(window.innerWidth));
+let resizeFrame = 0;
+const updatePageWidth = () => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    pageWidth.value = pageWidthForViewport(window.innerWidth);
+  });
+};
+onMounted(() => {
+  updatePageWidth();
+  window.addEventListener('resize', updatePageWidth);
+  window.addEventListener('pageshow', updatePageWidth);
+});
+onBeforeUnmount(() => {
+  cancelAnimationFrame(resizeFrame);
+  window.removeEventListener('resize', updatePageWidth);
+  window.removeEventListener('pageshow', updatePageWidth);
+});
 
 const isLoading = ref(true);
 const hasContent = ref(false);
@@ -28,6 +48,7 @@ onMounted(reloadApplication);
 </script>
 
 <template>
+  <div class="page-shell" :style="{ width: `${pageWidth}px` }">
   <div v-if="hasContent" :key="revision" class="layout" :inert="isLoading || !!loadError" :aria-busy="isLoading">
     <UiHeader @on-change-language="reloadApplication" />
     <RouterView v-slot="{ Component, route }">
@@ -35,6 +56,7 @@ onMounted(reloadApplication);
         <component :is="Component" :key="route.path" />
       </Transition>
     </RouterView>
+  </div>
   </div>
   <Transition name="loading" appear>
     <div v-if="isLoading || loadError" class="loading-overlay">
@@ -53,8 +75,15 @@ onMounted(reloadApplication);
 <style scoped lang="scss">
 @import './assets/styles/main.scss';
 
+.page-shell {
+  max-width:100%;
+  min-width:0;
+  flex-shrink:0;
+  margin-inline:auto;
+}
+
 .layout {
-  width: 360px;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   flex-shrink: 0;
@@ -63,9 +92,7 @@ onMounted(reloadApplication);
 }
 
 
-@media (min-width: 720px) { .layout { width:720px; } }
-@media (min-width: 1080px) { .layout { width:1080px; } }
-@media (min-width: 1440px) { .layout { width:1440px; } }
+
 
 .loading-error {
   min-height: 100vh;
