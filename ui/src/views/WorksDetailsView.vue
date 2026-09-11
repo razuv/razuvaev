@@ -111,4 +111,25 @@ watch(()=>route.params.id,load,{immediate:true});onUnmounted(()=>changeAppColor(
 .case-intro,.case-cover,.case-block-slot,.numbers-grid,.numbers-grid article { min-width:0; }
 .numbers-grid article { max-width:100%; overflow-wrap:anywhere; }
 .numbers-grid--1 { grid-template-columns:minmax(0,1fr); }
+
+/* Clip the rendered media too: border-radius alone can leave embedded players square. */
+.case { --case-radius:8px; }
+.case-cover,
+.single-media,
+.video-embed,
+.embed,
+.gallery > img,
+.numbers-grid > article,
+.mentions__logo,
+.case-block :deep(.ui-image) {
+  border-radius:var(--case-radius);
+  overflow:hidden;
+  clip-path:inset(0 round var(--case-radius));
+  isolation:isolate;
+}
+.case-block :deep(.ui-image-container),
+.case-block :deep(.swiper) {
+  border-radius:var(--case-radius);
+  overflow:hidden;
+}
 </style>
