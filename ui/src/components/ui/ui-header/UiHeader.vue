@@ -134,7 +134,7 @@ onUnmounted(() => contrastObserver?.disconnect());
         {{ text.bio }}
       </button>
       <a class="ui-header-navigation__pill" href="https://t.me/razuvaevtv" target="_blank" rel="noreferrer">TV</a>
-      <a v-if="linkedin?.visible && linkedin.link" class="ui-header-navigation__pill ui-header-navigation__social" :href="linkedin.link" target="_blank" rel="noreferrer" aria-label="LinkedIn" title="LinkedIn">
+      <a v-if="linkedin?.link" class="ui-header-navigation__pill ui-header-navigation__social" :href="linkedin.link" target="_blank" rel="noreferrer" aria-label="LinkedIn" title="LinkedIn">
         <LinkedinIcon aria-hidden="true" />
       </a>
       <a v-if="telegram?.visible && telegram.link" class="ui-header-navigation__pill ui-header-navigation__social" :href="telegram.link" target="_blank" rel="noreferrer" aria-label="Telegram" title="Telegram">
