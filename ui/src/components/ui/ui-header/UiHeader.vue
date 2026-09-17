@@ -53,6 +53,10 @@ const translations = {
 const text = computed(() => translations[selectedIso.value as keyof typeof translations] || translations.en);
 const isDetailsPage = computed(() => /^\/works\/[^/]+/.test(route.path));
 const selectedLanguage = computed(() => languages.find(language => language.iso === selectedIso.value) || languages[0] || { iso: 'en', name: 'English' });
+const contacts = computed(() => (getData('biography') as SettingsType['biography'][number]).contacts || []);
+const linkedin = computed(() => contacts.value.find(contact => contact.type === 'linkedin'));
+const telegram = computed(() => contacts.value.find(contact => contact.type === 'telegram'));
+const email = computed(() => contacts.value.find(contact => contact.type === 'email'));
 const compactLanguageName = (iso: LanguageIso) => ({ ru: '🇷🇺', en: '🇬🇧', sr: '🇷🇸' }[iso] || iso.toUpperCase());
 
 const selectLanguage = (iso: LanguageIso) => {
@@ -68,13 +72,13 @@ const selectLanguage = (iso: LanguageIso) => {
 };
 
 const copyEmail = async () => {
-  const email = 'alexey@razuvaev.me';
+  if(!email.value?.link) return;
 
   try {
-    await navigator.clipboard.writeText(email);
+    await navigator.clipboard.writeText(email.value.link);
   } catch {
     const input = document.createElement('textarea');
-    input.value = email;
+    input.value = email.value.link;
     input.style.position = 'fixed';
     input.style.opacity = '0';
     document.body.appendChild(input);
@@ -130,13 +134,13 @@ onUnmounted(() => contrastObserver?.disconnect());
         {{ text.bio }}
       </button>
       <a class="ui-header-navigation__pill" href="https://t.me/razuvaevtv" target="_blank" rel="noreferrer">TV</a>
-      <a class="ui-header-navigation__pill ui-header-navigation__social" href="https://www.linkedin.com/in/razuv/" target="_blank" rel="noreferrer" aria-label="LinkedIn" title="LinkedIn">
+      <a v-if="linkedin?.visible && linkedin.link" class="ui-header-navigation__pill ui-header-navigation__social" :href="linkedin.link" target="_blank" rel="noreferrer" aria-label="LinkedIn" title="LinkedIn">
         <LinkedinIcon aria-hidden="true" />
       </a>
-      <a class="ui-header-navigation__pill ui-header-navigation__social" href="https://t.me/razuvaev" target="_blank" rel="noreferrer" aria-label="Telegram" title="Telegram">
+      <a v-if="telegram?.visible && telegram.link" class="ui-header-navigation__pill ui-header-navigation__social" :href="telegram.link" target="_blank" rel="noreferrer" aria-label="Telegram" title="Telegram">
         <TelegramIcon aria-hidden="true" />
       </a>
-      <button class="ui-header-navigation__pill" type="button" @click="copyEmail">
+      <button v-if="email?.visible && email.link" class="ui-header-navigation__pill" type="button" @click="copyEmail">
         <img :src="isCopied ? '/assets/icons/icon-success.svg' : '/assets/icons/icon-copy.svg'" alt="" aria-hidden="true">
         Email
       </button>
