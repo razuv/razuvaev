@@ -98,6 +98,7 @@ const aboutText = computed<string>(() => {
     <UiImage
       :images="images.map(image => image.link)"
       :gallery="isDetails ? false : true"
+      :alt="title"
       class="ui-card-image"
     >
       <template #icon>
@@ -371,8 +372,8 @@ const aboutText = computed<string>(() => {
   .ui-card-details {
     &__title,
     &__year {
-      font-size: $font-size-h4;
-      line-height: $line-height-h4;
+      font-size: 16px;
+      line-height: 24px;
     }
   }
 }

@@ -1,6 +1,6 @@
 import { normalizeProjectCategories } from '../../shared/project-categories';
 import type { SettingsType } from '../../shared/settings.types';
-export type { SettingsType, Social, CaseBlock, CaseBlockType, HeroProofGroup } from '../../shared/settings.types';
+export type { SettingsType, TvTrack, Social, CaseBlock, CaseBlockType, HeroProofGroup } from '../../shared/settings.types';
 
 let settings: SettingsType;
 export let token: string;
@@ -18,28 +18,22 @@ export const resolveMediaUrl = (link: string): string => {
   return link;
 }
 
-export const uploadMedia = async (file: File): Promise<string> => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${baseUrl}/api/media`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData,
-  });
-
-  if(!response.ok) {
-    throw new Error(`Failed to upload media: ${response.status}`);
-  }
-
-  const result = await response.json();
-
-  if(!result?.link) {
-    throw new Error('Media upload did not return a link');
-  }
-
-  return result.link;
-}
+export const uploadMedia = (file: File, onProgress?: (percent:number)=>void): Promise<string> => new Promise((resolve,reject) => {
+  if (file.size > 100 * 1024 * 1024) { reject(new Error('Файл больше 100 МБ')); return; }
+  if (!/^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|video\/(mp4|webm|quicktime))$/.test(file.type)) { reject(new Error('Неподдерживаемый формат файла')); return; }
+  const request = new XMLHttpRequest();
+  request.open('POST', `${baseUrl}/api/media`);
+  request.setRequestHeader('Authorization', `Bearer ${token}`);
+  request.timeout = 120000;
+  request.upload.onprogress = event => { if(event.lengthComputable) onProgress?.(Math.round(event.loaded/event.total*100)); };
+  request.onerror = () => reject(new Error('Соединение прервано. Повторите загрузку.'));
+  request.ontimeout = () => reject(new Error('Время загрузки истекло. Повторите попытку.'));
+  request.onload = () => {
+    try { const result = JSON.parse(request.responseText); if(request.status >= 200 && request.status < 300 && result.link) resolve(result.link); else reject(new Error(result.message || `Ошибка загрузки (${request.status})`)); }
+    catch { reject(new Error('Сервер вернул некорректный ответ')); }
+  };
+  const body = new FormData(); body.append('file',file); request.send(body);
+});
 
 export const getSettings = async (forceReload?: boolean): Promise<SettingsType> => {
   if(settings && !forceReload) {
@@ -94,6 +88,18 @@ export const saveProjects = async (projects: SettingsType['projects'][number]) =
   return saved;
 }
 
+export const saveTv = async (tracks: NonNullable<SettingsType['tv']>) => {
+  const saved = await putJson('/api/tv', tracks);
+  if (saved !== true) throw new Error('Не удалось сохранить TV');
+};
+
+export const getTvMetadata = async (url: string): Promise<Partial<NonNullable<SettingsType['tv']>[number]>> => {
+  const response = await fetch(`${baseUrl}/api/tv/metadata?url=${encodeURIComponent(url)}`, { headers: { Authorization: `Bearer ${token}` } });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || 'Не удалось получить данные YouTube');
+  return result;
+};
+
 export const checkTokenValidation = async (tokenPayload: string): Promise<boolean> => {
   let response: Response;
   try {
@@ -122,4 +128,53 @@ export const restoreToken = async (): Promise<boolean> => {
   if(token) return true;
   const storedToken = sessionStorage.getItem('razuvaev-admin-token');
   return storedToken ? checkTokenValidation(storedToken) : false;
+};
+
+export interface ProjectWorkspace {
+  groups: SettingsType['projects'];
+  published: SettingsType['projects'];
+  revision: number;
+  updatedAt: string;
+}
+export const getProjectWorkspace = async (): Promise<ProjectWorkspace> => {
+  const response = await fetch(`${baseUrl}/api/project-workspace`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  if (!response.ok) throw new Error('Не удалось загрузить черновики. Проверьте доступность обновлённого API.');
+  return response.json();
+};
+export const saveProjectWorkspace = async (groups: SettingsType['projects'], revision: number, publish = false): Promise<{revision: number; updatedAt: string}> => {
+  const response = await fetch(`${baseUrl}/api/project-workspace`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ groups, revision, publish }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Не удалось сохранить. Изменения остаются в редакторе.');
+  }
+  return response.json();
+};
+
+export interface ChangeHistoryEntry {
+  id: number;
+  scope: string;
+  action: string;
+  createdAt: string;
+}
+
+export const getChangeHistory = async (): Promise<ChangeHistoryEntry[]> => {
+  const response = await fetch(`${baseUrl}/api/change-history`, {
+    headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('Не удалось загрузить историю изменений');
+  return response.json();
+};
+
+export const restoreChange = async (id: number): Promise<void> => {
+  const response = await fetch(`${baseUrl}/api/change-history/${id}/restore`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Не удалось восстановить версию');
+  }
+  await getSettings(true);
 };

@@ -1,46 +1,17 @@
 <script setup lang="ts">
-import { richText } from "../utils/content";
-import { ref, onMounted } from 'vue';
-import { SettingsType } from '../types/api.types';
-import { getData } from '../utils/api';
-
-import UiContacts from '../components/ui/ui-contacts/UiContacts.vue';
-import UiFeed from '../components/ui/ui-feed/UiFeed.vue';
-
-const bio = ref<SettingsType['biography'][number]>();
-
-onMounted(() => {
-  bio.value = getData('biography') as SettingsType['biography'][number];
-});
+import { computed } from 'vue'
+import { richText } from '../utils/content'
+import { getData, getLanguageIso } from '../utils/api'
+import type { SettingsType } from '../types/api.types'
+import { defaultCv } from '../data/profile'
+import ContactFooter from '../components/ui/ContactFooter.vue'
+const biography=getData('biography') as SettingsType['biography'][number]
+const companyLinks:Record<string,string>={'RMS Group':'https://rms.group','МТС · КИОН':'https://ir.mts.ru/en/home','MTS · KION':'https://ir.mts.ru/en/home','VK':'https://vk.company','Relap':'https://relap.io','Blackidea':'https://blackidea.net'}
+const copy=computed(()=>({...defaultCv(getLanguageIso()),intro:(biography.text||'').replace(/You can contact me using the links below:|Связаться со мной можно по ссылкам ниже:/gi,'').trim()||defaultCv(getLanguageIso()).intro,...biography.cv}))
 </script>
-
-<template>
-  <div
-    v-if="bio"
-    class="biography-view"
-  >
-    <span class="biography-view__text" v-html="richText(bio.text)" />
-
-    <UiContacts
-      class="biography-view__contacts"
-      :contacts="bio.contacts"
-    />
-
-    <UiFeed
-      class="biography-view__feed"
-      :feed="bio.feed"
-    />
-  </div>
-</template>
-
-<style lang="scss" scoped>
-@import '../assets/styles/main.scss';
-.biography-view {
-  &__text {
-    display: block;
-    margin-top: $font-size-base * .8;
-
-    @include font($font-size-base * 1.6, 400, $font-size-base * 2.4);
-  }
-}
+<template><main class="experience"><header><h1>{{copy.title}}</h1><div class="experience-intro" v-html="richText(copy.intro)"/><p>{{copy.approach}}</p><ul class="highlights"><li v-for="(item,index) in copy.highlights" :key="index">{{item}}</li></ul></header><section><h2>{{copy.history}}</h2><article v-for="(job,index) in copy.roles" :key="index"><div class="job-heading"><h3>{{job.company}}<a v-if="job.link||companyLinks[job.company]" :href="job.link||companyLinks[job.company]" target="_blank" rel="noopener noreferrer" :aria-label="job.company+' — website'"><i/></a></h3><span>{{job.period}}</span></div><p class="job-role">{{job.role}}</p><p>{{job.text}}</p></article></section><section><h2>{{copy.toolsTitle}}</h2><ul class="tool-list"><li v-for="(tool,index) in copy.tools" :key="index"><img v-if="tool.icon" :src="tool.icon" :class="{'tool-icon--mono':/\/assets\/tools\/.*\.svg$/.test(tool.icon)}" alt="" aria-hidden="true">{{tool.name}}</li></ul></section><ContactFooter/></main></template>
+<style scoped>
+.experience{max-width:670px;margin:24px auto 0;padding-bottom:32px;color:inherit}.experience h1{font-size:48px;line-height:56px;font-weight:400;margin:0 0 32px}.experience p,.experience-intro{font-size:18px;line-height:28px;margin:0 0 20px;color:inherit}.highlights{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 48px}.highlights li{padding:8px 12px;border:1px solid #666;border-radius:24px;font-size:14px;line-height:20px}.experience h2{font-size:32px;line-height:40px;font-weight:400;margin:0 0 28px}.experience section{margin-top:48px}.experience article{padding:24px 0}.job-heading{display:flex;justify-content:space-between;align-items:baseline;gap:20px}.job-heading h3{font-size:24px;line-height:32px;font-weight:400;margin:0}.job-heading span{color:#8F8F95;font-size:16px;line-height:24px;white-space:nowrap}.experience .job-role{color:#8F8F95;margin:8px 0 16px}.experience .contact-footer{padding-inline:0}@container page (width < 1080px){.experience{max-width:calc(100% - 80px)}}@container page (width < 720px){.experience{max-width:calc(100% - 40px)}.experience h1{font-size:32px;line-height:40px}.experience h2{font-size:24px;line-height:32px}.experience p,.experience-intro{font-size:16px;line-height:24px}.job-heading{display:block}.job-heading span{display:block;margin-top:4px}}
+.tool-list{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}.tool-list li{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:#ffffff18;border-radius:100px;font-size:16px;line-height:24px}.tool-list img{width:24px;height:24px;object-fit:contain}.tool-list img.tool-icon--mono{filter:brightness(0) invert(1)}.highlights li{border:0;background:color-mix(in srgb,currentColor 12%,transparent);font-size:16px;line-height:24px;padding:6px 12px;border-radius:100px}
+.job-heading h3{display:flex;align-items:center;gap:8px}.job-heading h3 a{display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;border-radius:50%;color:inherit}.job-heading h3 a:hover{background:#ffffff26}.job-heading h3 i{width:20px;height:20px;background:currentColor;mask:url('/assets/icons/icon-ext-white.svg') center/contain no-repeat}
 </style>

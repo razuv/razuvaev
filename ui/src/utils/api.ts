@@ -50,7 +50,7 @@ export const getLanguageIso = () => {
 
 export const resolveMediaUrl = (link: string): string => {
   if(link.startsWith('/media/')) {
-    return import.meta.env.VITE_USE_REMOTE_MEDIA === 'true' ? `${mediaBaseUrl}${link}` : link;
+    return import.meta.env.VITE_USE_REMOTE_MEDIA === 'true' ? (import.meta.env.DEV ? link.replace('/media/','/__remote-media/') : `${mediaBaseUrl}${link}`) : link;
   }
 
   return link;

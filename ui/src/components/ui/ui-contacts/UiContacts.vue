@@ -3,8 +3,6 @@ import { SettingsType } from '../../../types/api.types';
 
 import MediumIcon from '../../icons/MediumIcon.vue';
 import DribbleIcon from '../../icons/DribbleIcon.vue';
-import BehanceIcon from '../../icons/BehanceIcon.vue';
-import FacebookIcon from '../../icons/FacebookIcon.vue';
 import LinkedinIcon from '../../icons/LinkedinIcon.vue';
 import TelegramIcon from '../../icons/TelegramIcon.vue';
 
@@ -42,24 +40,6 @@ defineProps<Props>();
         target="_blank"
       >
         <DribbleIcon />
-      </a>
-
-      <a
-        v-if="contacts.find(c => c.type === 'behance')?.visible"
-        :href="contacts.find(c => c.type === 'behance')?.link"
-        class="ui-contacts-socials__item"
-        target="_blank"
-      >
-        <BehanceIcon />
-      </a>
-
-      <a
-        v-if="contacts.find(c => c.type === 'facebook')?.visible"
-        :href="contacts.find(c => c.type === 'facebook')?.link"
-        class="ui-contacts-socials__item"
-        target="_blank"
-      >
-        <FacebookIcon />
       </a>
 
       <a

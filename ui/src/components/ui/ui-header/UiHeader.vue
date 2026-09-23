@@ -45,9 +45,9 @@ const languages: LanguageOption[] = Array.from(
 );
 
 const translations = {
-  en: { name: 'Alexey Razuvaev', works: 'Works', bio: 'Bio', copied: 'Copied' },
-  ru: { name: 'Алексей Разуваев', works: 'Работы', bio: 'Био', copied: 'Скопировано' },
-  sr: { name: 'Алексеј Разуваев', works: 'Радови', bio: 'Биографија', copied: 'Копирано' },
+  en: { name: 'Alexey Razuvaev', works: 'Works', copied: 'Copied' },
+  ru: { name: 'Алексей Разуваев', works: 'Работы', copied: 'Скопировано' },
+  sr: { name: 'Алексеј Разуваев', works: 'Радови', copied: 'Копирано' },
 };
 
 const text = computed(() => translations[selectedIso.value as keyof typeof translations] || translations.en);
@@ -72,13 +72,12 @@ const selectLanguage = (iso: LanguageIso) => {
 };
 
 const copyEmail = async () => {
-  if(!email.value?.link) return;
-
+  if (!email.value?.link) return;
   try {
-    await navigator.clipboard.writeText(email.value.link);
+    await navigator.clipboard.writeText(email.value.link.replace(/^mailto:/, ''));
   } catch {
     const input = document.createElement('textarea');
-    input.value = email.value.link;
+    input.value = email.value.link.replace(/^mailto:/, '');
     input.style.position = 'fixed';
     input.style.opacity = '0';
     document.body.appendChild(input);
@@ -86,7 +85,6 @@ const copyEmail = async () => {
     document.execCommand('copy');
     input.remove();
   }
-
   isCopied.value = true;
   window.setTimeout(() => { isCopied.value = false; }, 1600);
 };
@@ -111,43 +109,24 @@ onUnmounted(() => contrastObserver?.disconnect());
     'ui-header--transparent': isDetailsPage,
     'ui-header--light-background': isDetailsPage && isDetailContrastLight
   }">
-    <button class="ui-header-brand" type="button" @click="router.push('/works')">
+    <button class="ui-header-brand" type="button" :aria-label="text.name+' — '+text.works" @click="router.push('/works')">
       <LogoIcon class="ui-header-brand__logo" />
       <span>{{ text.name }}</span>
     </button>
 
-    <nav class="ui-header-navigation" :aria-label="text.works">
-      <button
-        type="button"
-        class="ui-header-navigation__pill"
-        :class="{ 'ui-header-navigation__pill--active': route.path.includes('/works') }"
-        @click="router.push('/works')"
-      >
-        {{ text.works }}
-      </button>
-      <button
-        type="button"
-        class="ui-header-navigation__pill"
-        :class="{ 'ui-header-navigation__pill--active': route.path.includes('/bio') }"
-        @click="router.push('/bio')"
-      >
-        {{ text.bio }}
-      </button>
-      <a class="ui-header-navigation__pill" href="https://t.me/razuvaevtv" target="_blank" rel="noreferrer">TV</a>
+    <nav class="ui-header-navigation" aria-label="Contacts and language">
       <a v-if="linkedin?.link" class="ui-header-navigation__pill ui-header-navigation__social" :href="linkedin.link" target="_blank" rel="noreferrer" aria-label="LinkedIn" title="LinkedIn">
         <LinkedinIcon aria-hidden="true" />
       </a>
       <a v-if="telegram?.visible && telegram.link" class="ui-header-navigation__pill ui-header-navigation__social" :href="telegram.link" target="_blank" rel="noreferrer" aria-label="Telegram" title="Telegram">
         <TelegramIcon aria-hidden="true" />
       </a>
-      <button v-if="email?.visible && email.link" class="ui-header-navigation__pill" type="button" @click="copyEmail">
+      <button v-if="email?.visible && email.link" class="ui-header-navigation__pill" type="button" :aria-label="isCopied ? text.copied : 'Email'" @click="copyEmail">
         <img :src="isCopied ? '/assets/icons/icon-success.svg' : '/assets/icons/icon-copy.svg'" alt="" aria-hidden="true">
-        Email
+        {{ isCopied ? text.copied : 'Email' }}
       </button>
-
       <div
         class="ui-header-language"
-        @mouseenter="isLanguageOpen = true"
         @mouseleave="isLanguageOpen = false"
         @keydown.esc="isLanguageOpen = false"
         @focusout="!($event.currentTarget as HTMLElement).contains($event.relatedTarget as Node) && (isLanguageOpen = false)"
@@ -159,7 +138,7 @@ onUnmounted(() => contrastObserver?.disconnect());
           aria-controls="language-options"
           :title="selectedLanguage.name"
           aria-label="Language"
-          @mouseenter="isLanguageOpen = true"
+          @click="isLanguageOpen = !isLanguageOpen"
         >
           <span class="ui-header-language__full-name">{{ selectedLanguage.name }}</span>
           <span class="ui-header-language__compact-name">{{ compactLanguageName(selectedIso) }}</span>
@@ -201,7 +180,6 @@ onUnmounted(() => contrastObserver?.disconnect());
 .ui-header-brand__logo { width:24px; height:24px; }
 @container page (width >= 1440px) { .ui-header-brand__logo { width:20px; } }
 .ui-header-navigation { display:flex; align-items:center; gap:8px; }
-.ui-header-navigation > :nth-child(-n+3) { display:none; }
 .ui-header-navigation__pill, .ui-header-language__trigger, .ui-header-language-menu__item {
   display:flex; align-items:center; justify-content:center; gap:0; height:32px;
   padding:0 8px; border:0; border-radius:1000px; background:var(--pill);
@@ -212,11 +190,11 @@ onUnmounted(() => contrastObserver?.disconnect());
   &:hover { background:#fff; color:#000; img { filter:invert(1); } }
   &:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
 }
+.ui-header-language { position:relative; width:32px; height:32px; }
 .ui-header-navigation__social {
   width:32px; padding:0; flex:none;
   svg { width:18px; height:18px; }
 }
-.ui-header-language { position:relative; width:32px; height:32px; }
 .ui-header-language__trigger { width:100%; padding:0; }
 .ui-header-language__trigger[aria-expanded="true"] img { transform:rotate(180deg); }
 .ui-header-language__full-name, .ui-header-language-menu__full-name { display:none; }
@@ -233,10 +211,15 @@ onUnmounted(() => contrastObserver?.disconnect());
   .ui-header-brand__logo { width:24px; height:24px; }
   .ui-header-navigation { gap:4px; }
   .ui-header-navigation__pill, .ui-header-language__trigger, .ui-header-language-menu__item {
-    height:24px; font-size:12px; line-height:20px;
+    height:32px; font-size:16px; line-height:24px;
   }
-  .ui-header-navigation__social { width:24px; svg { width:14px; height:14px; } }
+  .ui-header-navigation__social { width:32px; svg { width:18px; height:18px; } }
   .ui-header-language { width:24px; height:24px; }
   .ui-header-language-menu { gap:2px; padding-top:2px; }
 }
+.ui-header-navigation__pill,.ui-header-language__trigger,.ui-header-language-menu__item{position:relative}
+.ui-header-navigation__pill:before,.ui-header-language__trigger:before,.ui-header-language-menu__item:before{content:'';position:absolute;inset:-6px 0;min-height:44px}
+.ui-header--light-background .ui-header-navigation__pill,.ui-header--light-background .ui-header-language__trigger,.ui-header--light-background .ui-header-language-menu__item{color:#222;background:rgba(0,0,0,.09)}
+.ui-header--light-background .ui-header-navigation__pill img{filter:invert(1)}
+@container page (width < 720px){.ui-header{height:64px;padding-block:10px}.ui-header-brand{min-width:32px;min-height:44px}.ui-header-navigation{gap:8px}.ui-header-navigation__pill,.ui-header-language__trigger,.ui-header-language-menu__item{min-height:32px}.ui-header-language{height:32px;width:32px}.ui-header-language-menu{gap:12px;padding-top:12px}}
 </style>

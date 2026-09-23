@@ -8,3 +8,9 @@ dist/
 
 api/settings/
 api/media/
+
+# Local TV prototype; release separately when ready.
+/ui/src/views/TvView.vue
+/ui/public/assets/tv/
+/admin/src/pages/tv.vue
+/api/test/tv.test.mjs

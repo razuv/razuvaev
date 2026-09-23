@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import { fetchData, getLanguageIso } from './utils/api';
 import UiHeader from './components/ui/ui-header/UiHeader.vue';
 import LogoIcon from './components/icons/LogoIcon.vue';
 import { pageWidthForViewport } from './utils/page-width';
 
 const pageWidth = ref(pageWidthForViewport(window.innerWidth));
+const route = useRoute();
 let resizeFrame = 0;
 const updatePageWidth = () => {
   cancelAnimationFrame(resizeFrame);
@@ -50,7 +52,7 @@ onMounted(reloadApplication);
 <template>
   <div class="page-shell" :style="{ width: `${pageWidth}px` }">
   <div v-if="hasContent" :key="revision" class="layout" :inert="isLoading || !!loadError" :aria-busy="isLoading">
-    <UiHeader @on-change-language="reloadApplication" />
+    <UiHeader v-show="route.path !== '/tv'" @on-change-language="revision++" />
     <RouterView v-slot="{ Component, route }">
       <Transition name="page" mode="out-in">
         <component :is="Component" :key="route.path" />

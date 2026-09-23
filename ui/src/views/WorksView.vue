@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { getData, getLanguageIso, resolveMediaUrl } from '../utils/api';
 import type { HeroProofGroup, SettingsType } from '../types/api.types';
+import ContactFooter from '../components/ui/ContactFooter.vue';
 import WorksList from './WorksList.vue';
 
 export type DesignCategory = 'product' | 'communication' | 'web' | 'event' | 'art-direction' | 'identity' | 'pet';
@@ -70,8 +71,8 @@ const biography = computed(() => getData('biography') as SettingsType['biography
 const editableHero = computed(() => biography.value?.iso === language.value ? biography.value.hero : undefined);
 const categoryLabels = computed(() => [text.value.categories[0], ...(biography.value?.categories?.length ? biography.value.categories : text.value.categories.slice(1))]);
 const hero = computed(() => ({
-  title: editableHero.value?.title || text.value.heading,
-  subtitle: editableHero.value?.subtitle || text.value.subtitle,
+  title: editableHero.value?.title||text.value.heading,
+  subtitle: editableHero.value?.title||text.value.heading,
   worked: {
     ...defaultProof.worked,
     label: text.value.worked,
@@ -83,11 +84,6 @@ const hero = computed(() => ({
     ...editableHero.value?.featured,
   } as HeroProofGroup,
 }));
-const ruSubtitleParts = computed(() => {
-  const [beforeWith, afterWith = ''] = hero.value.subtitle.split(' с ');
-  const [beforeAnd, afterAnd = ''] = beforeWith.split(' и ');
-  return { beforeAnd, afterAnd, afterWith };
-});
 const heroVideo = ref<HTMLVideoElement>();
 const heroVideoFallback = ref(false);
 const heroVideoUrl = computed(() => {
@@ -126,8 +122,7 @@ const toggleCategory = (category: DesignCategory) => {
     <section class="works-hero">
       <div class="works-hero-copy">
         <h1>{{ hero.title }}</h1>
-        <p v-if="language === 'ru'" class="works-hero-subtitle works-hero-subtitle--ru"><span>{{ruSubtitleParts.beforeAnd}}</span><span class="works-hero-subtitle__and"> и {{ruSubtitleParts.afterAnd}}</span><span v-if="ruSubtitleParts.afterWith" class="works-hero-subtitle__with"> с {{ruSubtitleParts.afterWith}}</span></p>
-        <p v-else>{{ hero.subtitle }}</p>
+        <p class="works-hero-subtitle">{{hero.subtitle}}</p>
 
         <div class="works-hero-proof">
           <div v-for="(group, groupKey) in { worked: hero.worked, featured: hero.featured }" :key="groupKey" class="works-hero-proof-group">
@@ -181,6 +176,7 @@ const toggleCategory = (category: DesignCategory) => {
     </nav>
 
     <WorksList :active-categories="activeCategories" />
+    <ContactFooter/>
   </main>
 </template>
 
@@ -616,4 +612,11 @@ const toggleCategory = (category: DesignCategory) => {
   .works-categories { width:336px; max-width:100%; min-height:48px; padding:0; gap:0; margin:48px auto 28px; justify-content:center; }
   .works-categories__button { height:24px; font-size:12px; line-height:20px; padding:0 8px; }
 }
+/* A stable filter bar does not cover project captions while scrolling. */
+.works-categories{position:relative;top:auto}.works-categories::before{background:#171717;backdrop-filter:none}.works-hero-copy h1{white-space:pre-line;text-wrap:balance;width:auto;max-width:100%;font-size:48px;line-height:56px}.works-hero-copy p{font-size:18px;line-height:28px}.works-hero-subtitle span{display:inline}
+@container page (width >= 1440px){.works-hero-copy{padding-top:70px}.works-hero-copy h1{font-size:56px;line-height:64px}.works-hero{min-height:420px}}
+@container page (width < 1080px){.works-hero-copy{max-width:640px;margin-inline:auto}.works-hero-portrait{width:430px;height:240px}.works-hero-copy h1{font-size:40px;line-height:48px}.works-categories{margin-top:32px}}
+@container page (width < 720px){.works-hero-portrait{width:280px;height:156px;margin-top:0}.works-hero-copy{padding-top:12px}.works-hero-copy h1{font-size:28px;line-height:36px}.works-hero-copy p{font-size:16px;line-height:24px}.works-categories{margin:24px auto;gap:4px}.works-categories__button{height:36px;font-size:14px;line-height:20px}.works-categories__button span{font-size:14px;line-height:20px}.works-hero-proof{margin-top:16px}}
+/* Consistent filter spacing at every viewport size. */
+.works-categories{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;width:fit-content;max-width:calc(100% - 40px);min-height:0;height:auto;margin:32px auto;padding:0;gap:8px;background:transparent;border-radius:0;overflow:visible}.works-categories::before{display:none}.works-categories__button{height:auto;min-height:32px;padding:4px 12px;font-size:16px;line-height:24px}.works-categories__button span{font-size:16px;line-height:24px}
 </style>

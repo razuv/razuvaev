@@ -1,160 +1,295 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
-import { getSettings, saveProjects, type CaseBlock, type CaseBlockType, type SettingsType } from '@/api'
+import { getSettings, getProjectWorkspace, saveProjectWorkspace, type CaseBlock, type CaseBlockType, type SettingsType } from '@/api'
+import { clone, changeMediaLayout, normalizeGroups, newBlock, createProject, syncProject, moveProject, blockLabel, blockGroups, descriptions, types, templates, templateEnglish, usesImages, previewHasMedia, hasTextFields } from '@/utils/case-editor'
 import MediaInput from '@/components/MediaInput.vue'
+import MediaBatch from '@/components/MediaBatch.vue'
 import ColorInput from '@/components/ColorInput.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
-type Project=SettingsType['projects'][number]['items'][number]
-const route=useRoute(),settings=ref<SettingsType>(),loading=ref(true),saving=ref(false),error=ref(''),selected=ref(0),draggedBlock=ref<number|null>(null),draggedMedia=ref<{block:number;media:number}|null>(null),draggedProject=ref<number|null>(null)
-const blockPickerOpen=ref(false),tagsOpen=ref(false),previewType=ref<CaseBlockType|null>(null)
-const saved=ref(false)
-const savedSnapshot=ref(''),leavePromptOpen=ref(false),allowLeave=ref(false)
-let resolveLeave:((allowed:boolean)=>void)|null=null
-const tagDraft=ref('')
-const structuredClone=<T,>(value:T):T=>JSON.parse(JSON.stringify(value))
-const confirmation=ref<{title:string;description:string;action:()=>void}|null>(null)
-const types:{type:CaseBlockType;label:string}[]=[{type:'heading',label:'Подзаголовок'},{type:'carousel',label:'Карусель изображений'},{type:'video',label:'Видео'},{type:'image',label:'Одно изображение'},{type:'slides',label:'Слайды'},{type:'gallery',label:'Галерея'},{type:'text-image',label:'Текст + изображение'},{type:'numbers',label:'Числа'},{type:'mentions',label:'Упоминания в СМИ'},{type:'text-text',label:'Текст + текст'},{type:'text',label:'Текст'},{type:'iframe',label:'IFrame (эмбед)'},{type:'team-thanks',label:'Команда и благодарность'},{type:'team',label:'Команда'},{type:'thanks',label:'Благодарность'}]
-const relapImages=['/media/201ae73f06-AxPUbHM.png','/media/e451bafff3-4jxEpQm.png','/media/9f122975ca-8c6ULR0.png','/media/9089d85d80-XgEdQ4u.png','/media/85ac7ea324-wAyClRG.png']
-const relapNumbers=[{value:'#1',text:'Native Advertising network in Russian Internet (2018)'},{value:'>600',text:'Creative promos and special projects designed'},{value:'12',text:"New advertising formats invented, 4 of them made it to production and formed most of Relap’s revenue"},{value:'3',text:'Designers developed from entry-level to senior level'}]
-const activeIso=computed(()=>String(route.query.lang||settings.value?.languages[0]?.iso||'en'))
-const locale=computed(()=>settings.value?.projects.find(item=>item.iso===activeIso.value)||settings.value?.projects[0])
-const archive=computed(()=>locale.value?.archive||[])
-const availableTags=computed(()=>settings.value?.biography.find(item=>item.iso===activeIso.value)?.categories||[])
-const project=computed(()=>locale.value?.items[selected.value])
-const newBlock=(type:CaseBlockType):CaseBlock=>({id:crypto.randomUUID(),type,title:hasTextFields(type)?types.find(item=>item.type===type)?.label||'':'',text:'',secondaryTitle:'',secondaryText:'',images:[],video:'',iframe:'',items:[],syncMedia:true})
-const legacyBlocks=(item:Project):CaseBlock[]=>{const blocks:CaseBlock[]=[];const isRelap=(item.info.link||'').includes('relap.io')||/^(relap|релап)(\.io)?$/i.test(item.info.title);if(isRelap){['Brandbook','Website','AdRoom'].forEach(title=>blocks.push({...newBlock('carousel'),title,images:[...relapImages]}));blocks.push({...newBlock('numbers'),title:'Numbers',items:relapNumbers.map(number=>({...number}))})}else{const media=item.info.images.slice(1).map(image=>image.link);if(media.length)blocks.push({...newBlock('carousel'),title:'',images:media})}const copyBlocks=item.details.content.slice(1);for(let index=0;index<copyBlocks.length;index++){const content=copyBlocks[index],title=content.title.toLowerCase(),next=copyBlocks[index+1],isTeam=title.includes('team')||title.includes('команд');if(isTeam&&next&&(next.title.toLowerCase().includes('thank')||next.title.toLowerCase().includes('благодар'))){blocks.push({...newBlock('team-thanks'),title:content.title,text:content.text,secondaryTitle:next.title,secondaryText:next.text});index++;continue}blocks.push({...newBlock(title.includes('thank')||title.includes('благодар')?'thanks':isTeam?'team':'text'),title:content.title,text:content.text})}return blocks}
-const normalize=(item:Project)=>{item.rules={...item.rules,nda:item.rules.nda??false,details:item.rules.details??true};item.info.images ||= [];if(!item.info.images.length)item.info.images.push({link:''});item.details.theme={...item.details.theme,background:item.details.theme.background||'#000000',textColor:item.details.theme.textColor||'#FFFFFF',accentColor:item.details.theme.accentColor||'#2FC1CB'};item.details.content ||= [];item.details.content[0] ||= {title:'',text:''};const isRelap=(item.info.link||'').includes('relap.io')||/^(relap|релап)(\.io)?$/i.test(item.info.title);item.details.industry ??= isRelap?'AdTech':item.details.content[0].title.split(',')[0]?.trim()||'';item.details.tags ||= isRelap?['Branding','Web','Product']:item.details.content[0].title.split(',').slice(1).map(tag=>tag.trim()).filter(Boolean);if(!item.details.blocks)item.details.blocks=legacyBlocks(item);for(const block of item.details.blocks){block.id ||= crypto.randomUUID();block.images ||= [];block.items ||= [];block.syncMedia ??= true}return item}
-const createProject=():Project=>normalize({rules:{nda:false,ndaPassword:'',details:true,syncMedia:true},info:{title:'',year:'',link:'',images:[{link:''}]},details:{industry:'',tags:[],theme:{background:'#000',textColor:'#fff',accentColor:'#2fc1cb'},content:[{title:'',text:''}],blocks:[]}})
-const load=async()=>{try{settings.value=await getSettings(true);settings.value.projects.forEach(group=>{group.archive ||= [];group.items.forEach(normalize);group.archive.forEach(normalize)});selected.value=0;savedSnapshot.value=JSON.stringify(settings.value.projects)}catch(e){error.value=e instanceof Error?e.message:'Ошибка загрузки'}finally{loading.value=false}}
-const hasUnsavedChanges=computed(()=>!!settings.value&&!!savedSnapshot.value&&JSON.stringify(settings.value.projects)!==savedSnapshot.value)
-watch(activeIso,()=>{const count=locale.value?.items.length||0;if(count) selected.value=Math.min(selected.value,count-1)})
-const save=async()=>{if(!settings.value)return;saving.value=true;saved.value=false;error.value='';try{const source=project.value;if(source){const projectIndex=selected.value;for(const group of settings.value.projects){if(group.iso===activeIso.value)continue;const target=group.items[projectIndex];if(!target)continue;target.details={...target.details,theme:{...source.details.theme},tags:(source.details.tags||[]).map((tag:string)=>{const from=availableTags.value.indexOf(tag),targetTags=settings.value?.biography.find(item=>item.iso===group.iso)?.categories||[];return from>=0&&targetTags[from]?targetTags[from]:tag})};target.rules={...target.rules,nda:source.rules.nda,ndaPassword:source.rules.ndaPassword,details:source.rules.details};target.details.blocks ||= [];for(const [blockIndex,block] of (source.details.blocks||[]).entries()){const samePosition=target.details.blocks[blockIndex];if(samePosition?.type===block.type)samePosition.spacing=block.spacing;if(block.syncMedia===false||!previewHasMedia(block.type))continue;let targetBlock=target.details.blocks.find(candidate=>candidate.id===block.id&&candidate.type===block.type);if(!targetBlock&&samePosition?.type===block.type&&!source.details.blocks?.some(candidate=>candidate.id===samePosition.id))targetBlock=samePosition;if(!targetBlock){targetBlock={...newBlock(block.type),id:block.id,title:'',text:'',secondaryTitle:'',secondaryText:'',items:[]};target.details.blocks.splice(blockIndex,0,targetBlock)}targetBlock.id=block.id;targetBlock.syncMedia=true;targetBlock.spacing=block.spacing;targetBlock.images=JSON.parse(JSON.stringify(block.images||[]));targetBlock.video=block.video||'';targetBlock.iframe=block.iframe||'';if(block.type==='mentions'){targetBlock.items ||= [];(block.items||[]).forEach((item,index)=>{targetBlock!.items![index] ||= {value:'',text:'',link:''};targetBlock!.items![index].image=item.image||''})}}}}for(const group of settings.value.projects){await saveProjects(group)}saved.value=true}catch(e){error.value=e instanceof Error?e.message:'Ошибка сохранения'}finally{saving.value=false}}
-const addProject=()=>{if(!settings.value)return;for(const group of settings.value.projects)group.items.unshift(createProject());selected.value=0}
-const askDelete=(title:string,description:string,action:()=>void)=>{confirmation.value={title,description,action}}
-const confirmDelete=()=>{confirmation.value?.action();confirmation.value=null}
-const removeProject=()=>{if(!settings.value||!locale.value||!project.value)return;const title=project.value.info.title||'Без названия',index=selected.value;askDelete('Переместить кейс в архив?',`Кейс «${title}» будет убран с сайта во всех языках.`,()=>{for(const group of settings.value!.projects){group.archive ||= [];const [removed]=group.items.splice(index,1);if(removed)group.archive.push(removed)}selected.value=Math.max(0,index-1)})}
-const restoreProject=(archiveIndex:number)=>{if(!settings.value)return;for(const group of settings.value.projects){const [restored]=group.archive?.splice(archiveIndex,1)||[];if(restored)group.items.push(restored)}}
-const deleteArchivedProject=(archiveIndex:number)=>{if(!settings.value)return;const title=archive.value[archiveIndex]?.info.title||'Без названия';askDelete('Удалить кейс навсегда?',`Кейс «${title}» нельзя будет восстановить.`,()=>{for(const group of settings.value!.projects)group.archive?.splice(archiveIndex,1)})}
-const dropProject=(target:number)=>{if(!locale.value||draggedProject.value===null)return;const[item]=locale.value.items.splice(draggedProject.value,1);locale.value.items.splice(target,0,item);selected.value=target;draggedProject.value=null}
-const addBlock=(type:CaseBlockType)=>{const block=newBlock(type),isRu=activeIso.value==='ru';if(type==='team-thanks'){block.title=isRu?'Команда':'Team';block.secondaryTitle=isRu?'Спасибо':'Thank you'}if(type==='mentions')block.title=isRu?'Упоминания в СМИ':'Mentions in the media';project.value?.details.blocks?.push(block);blockPickerOpen.value=false;previewType.value=null}
-const duplicateBlock=(index:number)=>{
-  const blocks=project.value?.details.blocks
-  if(!blocks?.[index])return
-  const copy=structuredClone(blocks[index])
-  copy.id=crypto.randomUUID()
-  blocks.splice(index+1,0,copy)
+const route = useRoute()
+const settings = ref<SettingsType>(), published = ref<SettingsType['projects']>([])
+const loading = ref(true), saving = ref(false), error = ref(''), savedSnapshot = ref(''), revision = ref(0), savedAt = ref('')
+const selectedId = ref(''), selectedBlock = ref('hero'), search = ref(''), archiveOpen = ref(false)
+const createOpen = ref(false), templateId = ref('blank'), newTitle = ref('')
+const pickerAt = ref<number | null>(null), publishOpen = ref(false), previewOpen = ref(false), previewWidth = ref(390)
+const logoFormat=ref('image/svg+xml')
+const frame = ref<HTMLIFrameElement>(), dragged = ref(''), draggedBlock = ref('')
+const past = ref<string[]>([]), future = ref<string[]>([])
+let autosave: ReturnType<typeof setTimeout> | undefined, historyTimer: ReturnType<typeof setTimeout> | undefined
+let restoring = false, syncing = false, activeSave: Promise<boolean> | undefined
+const activeIso = computed(() => String(route.query.lang || settings.value?.languages[0]?.iso || 'en'))
+const groups = computed(() => settings.value?.projects || [])
+const locale = computed(() => groups.value.find(group => group.iso === activeIso.value) || groups.value[0])
+const project = computed(() => locale.value?.items.find(item => item.id === selectedId.value))
+const blocks = computed(() => project.value?.details.blocks || [])
+const block = computed(() => blocks.value.find(item => item.id === selectedBlock.value))
+const availableTags = computed(() => settings.value?.biography.find(item => item.iso === activeIso.value)?.categories || [])
+const filtered = computed(() => (locale.value?.items || []).filter(item => item.info.title.toLowerCase().includes(search.value.toLowerCase())))
+const snapshot = computed(() => JSON.stringify(groups.value))
+const dirty = computed(() => !!savedSnapshot.value && snapshot.value !== savedSnapshot.value)
+const publishedSnapshot = computed(() => JSON.stringify(published.value))
+const unpublished = computed(() => !!settings.value && snapshot.value !== publishedSnapshot.value)
+const status = computed(() => saving.value ? 'Сохраняется…' : error.value ? 'Не удалось сохранить' : dirty.value ? 'Есть несохранённые изменения' : savedAt.value ? `Черновик сохранён · ${new Date(savedAt.value).toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'})}` : 'Черновик сохранён')
+const projectStatus = (id?: string) => {
+  const existing = published.value.some(group => group.items.some(item => item.id === id))
+  if (!existing) return 'Черновик'
+  return groups.value.some(group => JSON.stringify(group.items.find(item => item.id === id)) !== JSON.stringify(published.value.find(old => old.iso === group.iso)?.items.find(item => item.id === id))) ? 'Есть изменения' : 'Опубликован'
 }
-const dropBlock=(target:number)=>{const blocks=project.value?.details.blocks;if(!blocks||draggedBlock.value===null)return;const[item]=blocks.splice(draggedBlock.value,1);blocks.splice(target,0,item);draggedBlock.value=null}
-const startBlockDrag=(event:DragEvent,index:number)=>{draggedBlock.value=index;if(event.dataTransfer){event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',String(index))}}
-const dropMedia=(blockIndex:number,target:number)=>{if(draggedBlock.value!==null){dropBlock(blockIndex);return}const images=project.value?.details.blocks?.[blockIndex].images;if(!images||draggedMedia.value?.block!==blockIndex)return;const[item]=images.splice(draggedMedia.value.media,1);images.splice(target,0,item);draggedMedia.value=null}
-const usesImages=(type:CaseBlockType)=>['carousel','image','slides','gallery','text-image'].includes(type)
-const previewHasMedia=(type:CaseBlockType)=>['carousel','video','image','slides','gallery','text-image','iframe','mentions'].includes(type)
-const previewHasTwoColumns=(type:CaseBlockType)=>['text-image','text-text','team-thanks'].includes(type)
-const hasTextFields=(type:CaseBlockType)=>['heading','text-image','numbers','mentions','text-text','text','team-thanks','team','thanks'].includes(type)
-watch(saved,value=>{if(value&&settings.value)savedSnapshot.value=JSON.stringify(settings.value.projects)})
-const finishLeave=(allowed:boolean)=>{leavePromptOpen.value=false;const resolve=resolveLeave;resolveLeave=null;resolve?.(allowed)}
-const saveBeforeLeave=async()=>{await save();if(!error.value){allowLeave.value=true;finishLeave(true)}}
-const discardBeforeLeave=()=>{allowLeave.value=true;finishLeave(true)}
-const cancelLeave=()=>finishLeave(false)
-onBeforeRouteLeave(to=>{if(to.name==='cases'||allowLeave.value||!hasUnsavedChanges.value)return true;leavePromptOpen.value=true;return new Promise<boolean>(resolve=>{resolveLeave=resolve})})
-const warnBeforeUnload=(event:BeforeUnloadEvent)=>{if(!hasUnsavedChanges.value)return;event.preventDefault();event.returnValue=''}
-onMounted(()=>{window.addEventListener('beforeunload',warnBeforeUnload);load()})
-onBeforeUnmount(()=>window.removeEventListener('beforeunload',warnBeforeUnload))
-const syncSharedFields=()=>{if(!settings.value||!project.value)return;const source=project.value,index=selected.value;for(const group of settings.value.projects){if(group.iso===activeIso.value)continue;const target=group.items[index];if(!target)continue;target.info={...target.info,title:source.info.title,year:source.info.year,link:source.info.link};target.details={...target.details,industry:source.details.industry,tags:(source.details.tags||[]).map((tag:string)=>{const from=availableTags.value.indexOf(tag);const targetTags=settings.value?.biography.find(item=>item.iso===group.iso)?.categories||[];return from>=0&&targetTags[from]?targetTags[from]:tag}),theme:JSON.parse(JSON.stringify(source.details.theme)),content:JSON.parse(JSON.stringify(source.details.content))};target.rules={...target.rules,nda:source.rules.nda,ndaPassword:source.rules.ndaPassword,details:source.rules.details};if(source.info.images)target.info.images=JSON.parse(JSON.stringify(source.info.images));target.details.blocks=(target.details.blocks||[]);const tBlocks=target.details.blocks;(source.details.blocks||[]).forEach((block:any,i:number)=>{if(block.syncMedia!==false&&tBlocks[i])tBlocks[i]={...JSON.parse(JSON.stringify(block)),images:JSON.parse(JSON.stringify(block.images||[]))};else if(tBlocks[i])tBlocks[i]={...tBlocks[i],title:block.title,text:block.text,secondaryTitle:block.secondaryTitle,secondaryText:block.secondaryText,items:JSON.parse(JSON.stringify(block.items||[])),video:block.video,iframe:block.iframe}})}}
+const changes = computed(() => {
+  const result: string[] = []
+  for (const item of locale.value?.items || []) if (projectStatus(item.id) !== 'Опубликован') result.push(`${item.info.title || 'Без названия'} — ${projectStatus(item.id).toLowerCase()}`)
+  for (const item of published.value.find(group => group.iso === activeIso.value)?.items || []) if (!locale.value?.items.some(current => current.id === item.id)) result.push(`${item.info.title} — снять с публикации`)
+  if (JSON.stringify(locale.value?.items.map(item => item.id)) !== JSON.stringify(published.value.find(group => group.iso === activeIso.value)?.items.map(item => item.id))) result.push('Обновить порядок карточек во всех языках')
+  if (!result.length && unpublished.value) result.push('Обновить архив')
+  return result
+})
+const issues = computed(() => groups.value.flatMap(group => group.items.flatMap(item => [
+  ...(!item.info.title.trim() ? [`${group.iso.toUpperCase()}: заполните название кейса`] : []),
+  ...(!item.info.images[0]?.link ? [`${group.iso.toUpperCase()} · ${item.info.title || 'Кейс'}: добавьте обложку`] : []),
+  ...(item.rules.nda && !item.rules.ndaPassword?.trim() ? [`${group.iso.toUpperCase()} · ${item.info.title}: задайте пароль NDA`] : []),
+])))
+const mediaLibrary = computed(() => [...new Set(groups.value.flatMap(group => [...group.items, ...(group.archive || [])].flatMap(item => [...item.info.images.map(image => image.link), ...(item.details.blocks || []).flatMap(block => block.images || [])])))].filter(Boolean))
+const archive = computed(() => locale.value?.archive || [])
+const confirmation = ref<{title:string;description:string;action:()=>void} | null>(null)
+const ask = (title:string, description:string, action:()=>void) => { confirmation.value = {title,description,action} }
+const confirm = () => { confirmation.value?.action(); confirmation.value = null }
+const select = (id:string) => { selectedId.value = id; selectedBlock.value = 'hero' }
+const jump = (id:string) => { selectedBlock.value = id; nextTick(() => document.querySelector('.editor-panel')?.scrollIntoView({behavior:'smooth',block:'start'})) }
+
+async function load() {
+  loading.value = true
+  try {
+    const [data, workspace] = await Promise.all([getSettings(true), getProjectWorkspace()])
+    normalizeGroups(workspace.groups); normalizeGroups(workspace.published)
+    settings.value = {...data, projects: workspace.groups}
+    published.value = workspace.published
+    revision.value = workspace.revision; savedAt.value = workspace.updatedAt
+    savedSnapshot.value = JSON.stringify(workspace.groups)
+    past.value = [savedSnapshot.value]
+    selectedId.value = workspace.groups[0]?.items[0]?.id || ''
+  } catch (e) { error.value = e instanceof Error ? e.message : 'Ошибка загрузки' }
+  finally { loading.value = false }
+}
+function remember() {
+  clearTimeout(historyTimer)
+  if (past.value.at(-1) !== snapshot.value) { past.value.push(snapshot.value); if (past.value.length > 40) past.value.shift() }
+}
+function undo() {
+  remember()
+  if (past.value.length < 2 || !settings.value) return
+  restoring = true; future.value.push(past.value.pop()!); settings.value.projects = JSON.parse(past.value.at(-1)!); restoring = false
+}
+function redo() {
+  if (!future.value.length || !settings.value) return
+  restoring = true; const value = future.value.pop()!; past.value.push(value); settings.value.projects = JSON.parse(value); restoring = false
+}
+watch(project, (value, previous) => {
+  if (!settings.value || !value || value !== previous || syncing || restoring || loading.value) return
+  syncing = true
+  try { syncProject(groups.value, activeIso.value, value, settings.value) } finally { syncing = false }
+}, { deep:true, flush:'sync' })
+watch(snapshot, () => {
+  if (loading.value) return
+  clearTimeout(autosave)
+  if (!restoring) { future.value = []; clearTimeout(historyTimer); historyTimer = setTimeout(remember, 500) }
+  if (dirty.value) autosave = setTimeout(() => save(), 1500)
+  nextTick(sendPreview)
+}, {flush:'sync'})
+watch(activeIso, () => nextTick(sendPreview))
+watch(selectedId, () => nextTick(sendPreview))
+watch(blocks, () => { if (selectedBlock.value !== 'hero' && !blocks.value.some(item => item.id === selectedBlock.value)) selectedBlock.value = 'hero' })
+async function save(publish = false): Promise<boolean> {
+  clearTimeout(autosave)
+  if (activeSave) { await activeSave; if (publish || dirty.value) return save(publish); return !error.value }
+  if (!settings.value) return false
+  const payload = clone(groups.value), sent = JSON.stringify(payload)
+  saving.value = true; error.value = ''
+  activeSave = (async () => {
+    try {
+      const result = await saveProjectWorkspace(payload, revision.value, publish)
+      revision.value = result.revision; savedAt.value = result.updatedAt; savedSnapshot.value = sent
+      if (publish) { published.value = payload; publishOpen.value = false }
+      return true
+    } catch (e) { error.value = e instanceof Error ? e.message : 'Ошибка сохранения'; return false }
+    finally { saving.value = false; activeSave = undefined }
+  })()
+  return activeSave
+}
+function addProject() {
+  if (!settings.value) return
+  remember()
+  const id = crypto.randomUUID(), template = templates.find(item => item.id === templateId.value)!
+  const ids = template.sections.map(() => crypto.randomUUID())
+  for (const group of groups.value) {
+    const item = createProject(); item.id = id; item.info.title = group.iso === activeIso.value ? newTitle.value.trim() : ''
+    item.details.blocks = template.sections.map((title,index) => ({...newBlock('text'),id:ids[index],title:group.iso==='ru'?title:group.iso==='en'?templateEnglish[title]:''}))
+    group.items.unshift(item)
+  }
+  select(id); createOpen.value = false; newTitle.value = ''
+}
+function archiveProject() {
+  if (!project.value) return
+  const id = project.value.id
+  ask('Переместить кейс в архив?', 'Посетители перестанут видеть кейс после публикации изменений. Переводы сохранятся.', () => {
+    for (const group of groups.value) { const index = group.items.findIndex(item => item.id === id); if (index >= 0) (group.archive ||= []).push(...group.items.splice(index,1)) }
+    select(locale.value?.items[0]?.id || '')
+  })
+}
+function restore(id?:string) {
+  for (const group of groups.value) { const index = group.archive?.findIndex(item => item.id === id) ?? -1; if (index >= 0) group.items.push(...group.archive!.splice(index,1)) }
+  select(id || ''); archiveOpen.value = false
+}
+function deleteArchived(id?:string) {
+  ask('Удалить из архива?', 'Удаление сохранится в черновике. До закрытия редактора его можно отменить.', () => {
+    for (const group of groups.value) group.archive = (group.archive || []).filter(item => item.id !== id)
+  })
+}
+function addBlock(type:CaseBlockType) {
+  if (!project.value) return
+  const item = newBlock(type); item.title = ''; item.items = []
+  if (type === 'team') item.title = activeIso.value === 'ru' ? 'Команда' : 'Team'
+  project.value.details.blocks!.splice(pickerAt.value ?? blocks.value.length, 0, item)
+  pickerAt.value = null; selectedBlock.value = item.id
+}
+function moveBlock(id:string, offset:number) {
+  const index = blocks.value.findIndex(item => item.id === id), to = index + offset
+  if (index < 0 || to < 0 || to >= blocks.value.length) return
+  // Assign once so translation synchronization never sees a transient deletion.
+  const next = clone(blocks.value), [item] = next.splice(index,1); next.splice(to,0,item); project.value!.details.blocks = next
+}
+function dropBlock(targetId:string) { const from=blocks.value.findIndex(item=>item.id===draggedBlock.value), to=blocks.value.findIndex(item=>item.id===targetId); if(from>=0&&to>=0)moveBlock(draggedBlock.value,to-from); draggedBlock.value='' }
+function duplicate() { if (!block.value) return; const copy=clone(block.value); copy.id=crypto.randomUUID(); project.value!.details.blocks!.splice(blocks.value.findIndex(item=>item.id===block.value!.id)+1,0,copy); selectedBlock.value=copy.id }
+function setSpacing(value:string) { if(block.value)block.value.spacing=value===''?undefined:Math.max(0,Math.min(240,Number(value)||0)) }
+function addItem() { block.value?.items?.push({id:crypto.randomUUID(),value:'',text:''}) }
+function removeBlock() { if (!block.value) return; project.value!.details.blocks=blocks.value.filter(item=>item.id!==selectedBlock.value); selectedBlock.value='hero' }
+function exportBackup() {
+  const url=URL.createObjectURL(new Blob([JSON.stringify(groups.value,null,2)],{type:'application/json'}))
+  const link=document.createElement('a'); link.href=url; link.download='portfolio-draft.json'; link.click(); URL.revokeObjectURL(url)
+}
+const previewUrl = `${location.pathname}#/preview`
+function sendPreview() { if (project.value) frame.value?.contentWindow?.postMessage({type:'case-preview',project:clone(project.value),language:activeIso.value},location.origin) }
+function receivePreview(event:MessageEvent) {
+  if (event.origin !== location.origin || event.source !== frame.value?.contentWindow) return
+  if (event.data?.type === 'case-preview-ready') sendPreview()
+  if (event.data?.type === 'case-preview-select') { selectedBlock.value=event.data.id; previewOpen.value=false }
+}
+function keyboard(event:KeyboardEvent) { if ((event.ctrlKey||event.metaKey)&&event.key==='s') {event.preventDefault();save()} if(event.key==='Escape'){pickerAt.value=null;createOpen.value=false;previewOpen.value=false;publishOpen.value=false} }
+const leaveOpen=ref(false)
+let leaveResolve:((value:boolean)=>void)|undefined
+onBeforeRouteLeave(async () => { if (!dirty.value) return true; leaveOpen.value=true; return new Promise<boolean>(resolve=>{leaveResolve=resolve}) })
+function discardLeave() { clearTimeout(autosave); finishLeave(true) }
+function finishLeave(value:boolean) {leaveOpen.value=false;leaveResolve?.(value)}
+const beforeUnload=(event:BeforeUnloadEvent)=>{if(dirty.value){event.preventDefault();event.returnValue=''}}
+onMounted(()=>{load();window.addEventListener('beforeunload',beforeUnload);window.addEventListener('message',receivePreview);window.addEventListener('keydown',keyboard)})
+onBeforeUnmount(()=>{clearTimeout(autosave);clearTimeout(historyTimer);window.removeEventListener('beforeunload',beforeUnload);window.removeEventListener('message',receivePreview);window.removeEventListener('keydown',keyboard)})
 </script>
+
 <template>
-  <p v-if="loading" class="status">Загрузка…</p><p v-else-if="!project" class="status">{{error||'Нет кейсов для этого языка'}}</p>
-  <div v-else class="cases">
-    <div class="cases-toolbar"><div><strong>Кейсы</strong><span>{{project.info.title||'Без названия'}}</span></div><div><button class="pill pill--outline" @click="addProject">Добавить кейс +</button><button class="pill pill--light" :disabled="saving" @click="save">{{saving?'Сохраняю…':'Сохранить'}}</button></div></div>
-    <p v-if="error" class="status status--error" role="alert">{{error}}</p><p v-else-if="saved" class="status" role="status">Сохранено. Обновите страницу сайта, чтобы увидеть изменения.</p>
-    <div class="cases-layout">
-      <aside class="case-list"><h2 class="section-title">Проекты</h2><button v-for="(item,index) in locale?.items" :key="index" class="case-list__item" :class="{'case-list__item--active':selected===index}" draggable="true" @dragstart="draggedProject=index" @dragover.prevent @drop.prevent="dropProject(index)" @click="selected=index">{{item.info.title||'Без названия'}}</button><button class="text-button" @click="addProject">Добавить +</button></aside>
-      <div class="case-editor">
-        <section class="fixed-fields">
-          <h2 class="section-title">Первый экран <button type="button" class="text-button danger" @click="removeProject">Удалить кейс</button></h2>
-          <div class="hero-editor">
-            <div class="hero-editor__content">
-              <div class="hero-editor__identity"><label class="field"><span>Заголовок</span><input v-model="project.info.title" class="control"></label><label class="field"><span>Год</span><input v-model="project.info.year" class="control"></label></div>
-              <label class="field"><span>Описание</span><textarea v-model="project.details.content[0].text" class="control"></textarea></label>
-              <div class="hero-editor__metadata"><label class="field"><span>Отрасль</span><input v-model="project.details.industry" class="control" placeholder="AdTech"></label><div class="field tag-picker"><span>Теги</span><button type="button" class="control tag-picker__trigger" @click="tagsOpen=!tagsOpen">{{project.details.tags?.length?project.details.tags.join(', '):'Выбрать теги'}}</button><div v-if="tagsOpen" class="tag-picker__menu"><label v-for="tag in availableTags" :key="tag"><input v-model="project.details.tags" type="checkbox" :value="tag"><span>{{tag}}</span></label></div></div></div>
-              <label class="field"><span>Ссылка</span><input v-model="project.info.link" class="control"></label>
-            </div>
-            <div class="hero-editor__cover">
-              <h3>Обложка кейса</h3>
-              <MediaInput v-model="project.info.images[0].link" label="Обложка кейса" accept="image/*" preview/>
-            </div>
-          </div>
-          <div class="hero-settings">
-            <section class="hero-settings__colors">
-              <h3>Цвета</h3>
-              <div class="hero-colors"><div class="field"><span>Цвет фона</span><ColorInput v-model="project.details.theme.background"/></div><div class="field"><span>Цвет текста</span><ColorInput v-model="project.details.theme.textColor"/></div><div class="field"><span>Цвет акцента</span><ColorInput v-model="project.details.theme.accentColor!"/></div></div>
-            </section>
-            <section class="hero-settings__access">
-              <h3>Доступ к кейсу</h3>
-              <div class="hero-access">
-                <label class="toggle"><input v-model="project.rules.details" type="checkbox"><span>Открывать страницу кейса</span></label>
-                <label class="toggle"><input v-model="project.rules.nda" type="checkbox"><span>NDA</span></label>
-              </div>
-              <label v-if="project.rules.nda" class="field hero-password"><span>Пароль NDA</span><input v-model="project.rules.ndaPassword" class="control"></label>
-            </section>
-          </div>
-        </section>
-        <section class="blocks"><div class="blocks-head"><h2 class="section-title">Блоки кейса</h2><div class="block-picker"><button class="pill pill--outline block-picker__trigger" type="button" @click="blockPickerOpen=!blockPickerOpen">Добавить блок <img :src="'/assets/icons/icon-down.svg'" alt=""></button><div v-if="blockPickerOpen" class="block-picker__popover"><div class="block-picker__options"><button v-for="type in types" :key="type.type" type="button" @mouseenter="previewType=type.type" @focus="previewType=type.type" @click="addBlock(type.type)">{{type.label}}</button></div><aside v-if="previewType" class="block-preview" role="tooltip"><span>{{types.find(item=>item.type===previewType)?.label}}</span><div class="block-preview__canvas" :class="{'block-preview__canvas--two':previewHasTwoColumns(previewType)}"><template v-if="previewType==='numbers'"><i v-for="n in 4" :key="n" class="preview-number"><b>{{n===1?'#1':n}}</b><em/></i></template><template v-else-if="['carousel','slides','gallery'].includes(previewType)"><i v-for="n in 3" :key="n" class="preview-media"/></template><template v-else><div v-for="n in (previewHasTwoColumns(previewType)?2:1)" :key="n" class="preview-column"><i class="preview-title"/><i v-if="previewHasMedia(previewType)" class="preview-media preview-media--large"/><template v-else><i class="preview-line"/><i class="preview-line preview-line--short"/><i class="preview-line"/></template></div></template></div></aside></div></div></div>
-          <article v-for="(block,index) in project.details.blocks" :key="block.id" class="block" :class="{'block--media-only':!hasTextFields(block.type),'block--dragging':draggedBlock===index}" @dragenter.prevent @dragover.prevent @drop.prevent.stop="dropBlock(index)"><header><button type="button" class="block-drag-handle" draggable="true" aria-label="Перетащить блок" title="Перетащить блок" @dragstart.stop="startBlockDrag($event,index)" @dragend="draggedBlock=null"><i/><i/><i/><i/><i/><i/></button><strong>{{types.find(item=>item.type===block.type)?.label}}</strong><label v-if="previewHasMedia(block.type)" class="toggle block-sync"><input v-model="block.syncMedia" type="checkbox"><span>Общее медиа</span></label><button class="text-button delete-button" @click="askDelete('Удалить блок?',`Блок «${types.find(item=>item.type===block.type)?.label}» будет удалён.`,()=>project!.details.blocks!.splice(index,1))">Удалить <img :src="'/assets/icons/icon-cross.svg'" alt=""></button></header>
-            <div class="block-fields"><label v-if="hasTextFields(block.type)" class="field"><span>Подзаголовок</span><input v-model="block.title" class="control"></label><label v-if="['text','text-image','text-text','team','thanks','team-thanks'].includes(block.type)" class="field"><span>Текст</span><textarea v-model="block.text" class="control"></textarea></label><label v-if="['text-text','team-thanks'].includes(block.type)" class="field"><span>Второй заголовок</span><input v-model="block.secondaryTitle" class="control"></label><label v-if="['text-text','team-thanks'].includes(block.type)" class="field"><span>Второй текст</span><textarea v-model="block.secondaryText" class="control"></textarea></label><label v-if="block.type==='iframe'" class="field"><span>URL IFrame</span><input v-model="block.iframe" class="control" placeholder="https://playtools.razuvaev.tv/?embed=1#…"><small>Вставьте полный URL, включая часть после #, или код &lt;iframe&gt; — адрес будет извлечён автоматически.</small></label><label v-if="block.type==='video'" class="field"><span>Видео</span><MediaInput v-model="block.video!" accept="video/*" preview/></label></div>
-            <div v-if="usesImages(block.type)" class="media-list"><div v-for="(_,mediaIndex) in block.images" :key="mediaIndex" class="media-row" draggable="true" @dragstart.stop="draggedMedia={block:index,media:mediaIndex}" @dragover.prevent @drop.stop.prevent="dropMedia(index,mediaIndex)"><MediaInput v-model="block.images![mediaIndex]" :label="'Изображение '+(mediaIndex+1)" accept="image/*,video/*" preview/><button class="text-button delete-button" @click="askDelete('Удалить изображение?','Изображение будет удалено из этого блока.',()=>block.images!.splice(mediaIndex,1))">Удалить <img :src="'/assets/icons/icon-cross.svg'" alt=""></button></div><button class="pill pill--outline" @click="block.images!.push('')">Добавить изображение +</button></div>
-            <div v-if="block.type==='numbers'" class="numbers-list"><div v-for="(item,numberIndex) in block.items" :key="numberIndex" class="number-row"><input v-model="item.value" class="control" placeholder="#1"><textarea v-model="item.text" class="control" placeholder="Описание"></textarea><button class="text-button delete-button" @click="askDelete('Удалить число?','Карточка числа будет удалена.',()=>block.items!.splice(numberIndex,1))">Удалить <img :src="'/assets/icons/icon-cross.svg'" alt=""></button></div><button class="pill pill--outline" @click="block.items!.push({value:'',text:''})">Добавить число +</button></div>
-            <div v-if="block.type==='mentions'" class="mentions-list"><div v-for="(item,mentionIndex) in block.items" :key="mentionIndex" class="mention-row"><MediaInput v-model="item.image!" label="Логотип издания" accept="image/*" preview/><input v-model="item.text" class="control" placeholder="Название публикации"><input v-model="item.link!" class="control" placeholder="https://"><button class="text-button delete-button" @click="askDelete('Удалить упоминание?','Строка будет удалена из блока.',()=>block.items!.splice(mentionIndex,1))">Удалить <img :src="'/assets/icons/icon-cross.svg'" alt=""></button></div><button class="pill pill--outline" @click="block.items!.push({value:'',text:'',image:'',link:''})">Добавить упоминание +</button></div>
-            <label class="spacing-control"><span>Отступ после блока: {{block.spacing===undefined?'по умолчанию':block.spacing+' px'}}</span><input :value="block.spacing??72" type="range" min="0" max="240" step="4" @input="block.spacing=Number(($event.target as HTMLInputElement).value)"><button v-if="block.spacing!==undefined" type="button" class="text-button" @click.prevent="block.spacing=undefined">Сбросить</button></label>
-            <button type="button" class="pill pill--outline block-duplicate" @click="duplicateBlock(index)">Дублировать блок</button>
-          </article>
-        </section>
+  <p v-if="loading" class="status" role="status">Загружаю кейсы…</p>
+  <div v-else-if="!settings" class="empty"><h1>Не удалось открыть редактор</h1><p role="alert">{{error}}</p><button class="pill" @click="load">Повторить</button></div>
+  <div v-else class="workspace">
+    <header class="workspace-toolbar">
+      <div><h1>Кейсы</h1><p role="status" :class="{'error-text':error}">{{status}}</p></div>
+      <div class="toolbar-actions">
+        <button class="pill" :disabled="past.length<2 && !dirty" @click="undo" title="Отменить изменение"><span class="history-icon"><img :src="'/assets/icons/icon-undo-white.svg'" class="icon-white" alt=""><img :src="'/assets/icons/icon-undo-black.svg'" class="icon-black" alt=""></span>Отменить</button>
+        <button class="pill" :disabled="!future.length" @click="redo" title="Повторить изменение" aria-label="Повторить изменение"><span class="history-icon"><img :src="'/assets/icons/icon-redo-white.svg'" class="icon-white" alt=""><img :src="'/assets/icons/icon-redo-black.svg'" class="icon-black" alt=""></span></button>
+        <button class="pill" :disabled="saving||!dirty" @click="save()">Сохранить черновик</button>
+        <button class="pill pill--light" :disabled="!unpublished||saving" @click="publishOpen=true">Опубликовать изменения</button>
       </div>
+    </header>
+    <div v-if="error" class="error-banner" role="alert">{{error}} <button class="text-button" @click="save()">Повторить</button> <button class="text-button" @click="exportBackup">Скачать резервную копию</button></div>
+    <div class="editor-layout">
+      <aside class="project-sidebar">
+        <label class="field"><span>Найти кейс</span><input v-model="search" class="control" type="search" placeholder="Название проекта"></label>
+        <button class="pill pill--outline add-case" @click="createOpen=true"><img class="admin-icon" src="/assets/icons/icon-plus.svg" alt="" aria-hidden="true"> Создать кейс</button>
+        <div class="project-list">
+          <button v-for="item in filtered" :key="item.id" class="project-row" :class="{'is-active':selectedId===item.id}" draggable="true" @dragstart="dragged=item.id!" @dragover.prevent @drop.prevent="moveProject(groups,dragged,item.id!);dragged=''" @click="select(item.id!)">
+            <span>{{item.info.title||'Без названия'}}</span><small>{{projectStatus(item.id)}}<span v-if="item.rules.nda"> · NDA</span></small>
+          </button>
+          <p v-if="!filtered.length" class="muted">{{search?'Ничего не найдено':'Кейсов пока нет'}}</p>
+        </div>
+        <button class="text-button archive-button" @click="archiveOpen=!archiveOpen">Архив · {{archive.length}}</button>
+        <div v-if="archiveOpen" class="archive-list"><p v-if="!archive.length" class="muted">Архив пуст</p><article v-for="item in archive" :key="item.id"><strong>{{item.info.title||'Без названия'}}</strong><button class="text-button" @click="restore(item.id)">Восстановить</button><button class="text-button danger" @click="deleteArchived(item.id)">Удалить</button></article></div>
+      </aside>
+      <main v-if="project" class="case-workspace">
+        <div class="case-heading"><div><p class="eyebrow">{{projectStatus(project.id)}} · {{activeIso.toUpperCase()}}</p><h2>{{project.info.title||'Новый кейс'}}</h2></div><button class="pill pill--outline" @click="previewOpen=true">Предпросмотр <img class="admin-icon" src="/assets/icons/icon-ext-white.svg" alt="" aria-hidden="true"></button></div>
+        <div class="translation-bar" aria-label="Переводы"><span v-for="group in groups" :key="group.iso">{{group.iso.toUpperCase()}} · {{group.items.find(item=>item.id===selectedId)?.info.title.trim() ? 'название заполнено' : 'нужен перевод'}}</span></div>
+        <div class="case-columns">
+          <nav class="outline" aria-label="Структура кейса">
+            <h3>Структура кейса</h3>
+            <button :class="{'is-active':selectedBlock==='hero'}" @click="jump('hero')">Первый экран</button>
+            <button class="insert-button" @click="pickerAt=0"><img class="admin-icon" src="/assets/icons/icon-plus.svg" alt="" aria-hidden="true"> Добавить блок</button>
+            <template v-for="(item,index) in blocks" :key="item.id">
+              <button class="outline-block" :class="{'is-active':selectedBlock===item.id,'is-hidden':item.hidden}" draggable="true" @dragstart="draggedBlock=item.id" @dragover.prevent @drop.prevent="dropBlock(item.id)" @click="jump(item.id)"><small>{{index+1}} · {{blockLabel(item.type)}}{{item.hidden?' · скрыт':''}}</small><span>{{item.title||descriptions[item.type]}}</span></button>
+              <button class="insert-button" :aria-label="'Добавить блок после '+(index+1)" @click="pickerAt=index+1"><img class="admin-icon" src="/assets/icons/icon-plus.svg" alt="" aria-hidden="true"></button>
+            </template>
+            <p v-if="!blocks.length" class="muted">Расскажите о задаче, своей роли и результате.</p>
+          </nav>
+          <section :key="activeIso+selectedId+selectedBlock" class="editor-panel">
+            <template v-if="selectedBlock==='hero'">
+              <div class="panel-heading"><h3>Первый экран</h3><button class="text-button danger" @click="archiveProject">В архив</button></div>
+              <p class="hint">Название и описание относятся к {{activeIso.toUpperCase()}}. Логотип, обложка, год, цвета и доступ общие для всех переводов.</p>
+              <div class="identity-grid"><label class="field"><span>Название</span><input v-model="project.info.title" class="control" placeholder="Название проекта"></label><label class="field"><span>Год</span><input v-model="project.info.year" class="control" placeholder="2026"></label></div>
+              <label class="toggle"><input v-model="project.rules.showTitle" type="checkbox"> Показывать заголовок в начале кейса</label>
+              <label class="field"><span>Краткое описание</span><textarea v-model="project.details.content[0].text" class="control" rows="6" placeholder="Что это за проект, какую задачу решали и за что отвечали вы?"></textarea></label>
+              <label class="field"><span>Отрасль</span><input v-model="project.details.industry" class="control" placeholder="Например, EdTech"></label>
+              <fieldset class="tag-options"><legend>Категории работ</legend><label v-for="tag in availableTags" :key="tag"><input v-model="project.details.tags" type="checkbox" :value="tag">{{tag}}</label></fieldset>
+              <label class="field"><span>Сайт проекта</span><input v-model="project.info.link" class="control" type="url" placeholder="https://"></label>
+              <label class="field"><span>Короткая подпись карточки · {{activeIso.toUpperCase()}}</span><input v-model="project.info.summary" class="control" placeholder="Задача и ваша роль в одном предложении"></label>
+              <div class="field"><span>Логотип в начале кейса</span><select v-model="logoFormat" class="control" aria-label="Формат логотипа"><option value="image/svg+xml">SVG · векторный логотип</option><option value="image/png">PNG · с прозрачным фоном</option></select><MediaInput v-model="project.info.logo" label="Логотип SVG или PNG" :accept="logoFormat" preview/><small class="hint">Перетащите файл или выберите его. Без логотипа показывается название проекта. Обложка ниже остаётся только в списке работ.</small><button v-if="project.info.logo" class="text-button" @click="project.info.logo=''">Убрать логотип</button></div>
+              <label class="field"><span>Размещение на главной</span><select v-model="project.rules.listing" class="control"><option :value="undefined">Автоматически · по дате</option><option value="default">Основной список</option><option value="featured">Избранный проект</option><option value="archive">Архив ранних работ</option></select></label>
+              <div class="field"><span>Обложка карточки на главной</span><MediaInput v-model="project.info.images[0].link" label="Обложка" accept="image/*" preview :library="mediaLibrary"/></div>
+              <details class="settings-section"><summary>Оформление</summary><div class="colors"><label class="field"><span>Фон</span><ColorInput v-model="project.details.theme.background"/></label><label class="field"><span>Текст</span><ColorInput v-model="project.details.theme.textColor"/></label><label class="field"><span>Акцент</span><ColorInput v-model="project.details.theme.accentColor!"/></label></div></details>
+              <details class="settings-section"><summary>Доступ и порядок</summary><label class="toggle"><input v-model="project.rules.details" type="checkbox">Открывать страницу кейса</label><label class="toggle"><input v-model="project.rules.nda" type="checkbox">Защитить паролем (NDA)</label><label v-if="project.rules.nda" class="field"><span>Пароль</span><input v-model="project.rules.ndaPassword" type="password" autocomplete="new-password" class="control"></label><div class="inline-actions"><button class="pill" :disabled="locale.items[0]?.id===project.id" @click="moveProject(groups,project.id!,locale.items[locale.items.indexOf(project)-1].id!)">Выше в списке</button><button class="pill" :disabled="locale.items.at(-1)?.id===project.id" @click="moveProject(groups,project.id!,locale.items[locale.items.indexOf(project)+1].id!)">Ниже в списке</button></div></details>
+            </template>
+            <template v-else-if="block">
+              <div class="panel-heading"><h3>{{blockLabel(block.type)}}</h3><div class="inline-actions"><button class="pill" :disabled="blocks[0].id===block.id" @click="moveBlock(block.id,-1)" aria-label="Блок выше"><img class="admin-icon" src="/assets/icons/arrow-up-white.svg" alt="" aria-hidden="true"></button><button class="pill" :disabled="blocks.at(-1)?.id===block.id" @click="moveBlock(block.id,1)" aria-label="Блок ниже"><img class="admin-icon" src="/assets/icons/arrow-down-white.svg" alt="" aria-hidden="true"></button></div></div>
+              <div class="inline-actions block-actions"><button class="text-button" @click="duplicate">Дублировать</button><button class="text-button" @click="block.hidden=!block.hidden">{{block.hidden?'Показать на сайте':'Скрыть на сайте'}}</button><button class="text-button danger" @click="removeBlock">Удалить</button></div>
+              <p v-if="block.hidden" class="hint">Блок сохранён, но не показывается посетителям.</p>
+              <label v-if="hasTextFields(block.type)||['carousel','gallery','slides','video','iframe'].includes(block.type)" class="field"><span>Заголовок</span><input v-model="block.title" class="control"></label>
+              <label v-if="['text','text-image','text-text','thanks','team-thanks'].includes(block.type) || (block.type==='team' && block.text)" class="field"><span>Текст</span><textarea v-model="block.text" class="control" rows="8" placeholder="Объясните решение, свою роль или результат. Пустая строка разделяет абзацы."></textarea></label>
+              <template v-if="['text-text','team-thanks'].includes(block.type)"><label class="field"><span>Второй заголовок</span><input v-model="block.secondaryTitle" class="control"></label><label class="field"><span>Второй текст</span><textarea v-model="block.secondaryText" class="control" rows="6"></textarea></label></template>
+              <div v-if="previewHasMedia(block.type)" class="media-sync"><label class="toggle"><input v-model="block.syncMedia" type="checkbox">Одинаковые медиа во всех языках</label><small>Тексты и подписи остаются отдельными. Отключите для локализованных изображений.</small></div>
+              <div v-if="usesImages(block.type)">
+                <label v-if="['gallery','carousel','slides'].includes(block.type)" class="field"><span>Способ показа</span><select :value="block.type" class="control" @change="changeMediaLayout(block,($event.target as HTMLSelectElement).value as CaseBlockType)"><option value="gallery">Сетка</option><option value="carousel">Горизонтальная лента</option><option value="slides">Слайд-шоу</option></select></label>
+                <MediaBatch v-if="!['image','text-image'].includes(block.type)" @uploaded="block.images!.push(...$event)"/>
+                <div v-for="(image,index) in block.images" :key="block.id+'-'+index" class="media-item"><MediaInput v-model="block.images![index]" label="Изображение" accept="image/*" preview :library="mediaLibrary"/><div class="inline-actions"><button class="text-button" :disabled="index===0" @click="block.images!.splice(index-1,0,...block.images!.splice(index,1))"><img class="admin-icon" src="/assets/icons/arrow-left-white.svg" alt="" aria-hidden="true"> Выше</button><button class="text-button" :disabled="index===block.images!.length-1" @click="block.images!.splice(index+1,0,...block.images!.splice(index,1))">Ниже <img class="admin-icon" src="/assets/icons/arrow-right-white.svg" alt="" aria-hidden="true"></button><button class="text-button danger" @click="block.images!.splice(index,1)">Убрать</button></div></div>
+                <button v-if="!['image','text-image'].includes(block.type)||!block.images?.length" class="pill" @click="block.images!.push('')"><img class="admin-icon" src="/assets/icons/icon-plus.svg" alt="" aria-hidden="true"> Изображение по ссылке / из библиотеки</button>
+                <label class="field"><span>Подпись под блоком</span><input v-model="block.caption" class="control" placeholder="Что важно заметить на этих изображениях?"></label><label class="field"><span>Описание изображения для доступности</span><input v-model="block.alt" class="control"></label>
+              </div>
+              <template v-if="block.type==='video'"><MediaInput v-model="block.video!" label="Видео или ссылка YouTube / Vimeo" accept="video/*" preview/><div class="field"><span>Постер для видеофайла</span><MediaInput v-model="block.poster!" label="Постер" accept="image/*" preview :library="mediaLibrary"/></div></template>
+              <label v-if="block.type==='iframe'" class="field"><span>Ссылка или код вставки</span><textarea v-model="block.iframe" class="control" placeholder="https://… или <iframe …>"></textarea></label>
+              <template v-if="['numbers','mentions','team'].includes(block.type)">
+                <article v-for="(item,index) in block.items" :key="index" class="item-card">
+                  <template v-if="block.type==='numbers'"><label class="field"><span>Значение</span><input v-model="item.value" class="control" placeholder="+25%"></label><label class="field"><span>Что измеряли</span><textarea v-model="item.text" class="control" placeholder="Рост завершённых регистраций"></textarea></label><label class="field"><span>Период / база сравнения</span><input v-model="item.period" class="control" placeholder="Май — июнь 2026, относительно…"></label><label class="field"><span>Источник и ограничения</span><input v-model="item.source" class="control" placeholder="Аналитика команды; результат всего перезапуска"></label></template>
+                  <template v-else-if="block.type==='team'"><label class="field"><span>Имя</span><input v-model="item.text" class="control"></label><label class="field"><span>Роль и ответственность</span><input v-model="item.role" class="control" placeholder="Арт-директор — концепция и ревью"></label></template>
+                  <template v-else><MediaInput v-model="item.image!" label="Логотип издания" accept="image/*" preview :library="mediaLibrary"/><label class="field"><span>Название публикации</span><input v-model="item.text" class="control"></label><label class="field"><span>Ссылка</span><input v-model="item.link" class="control" type="url"></label></template>
+                  <button class="text-button danger" @click="block.items!.splice(index,1)">Удалить строку</button>
+                </article>
+                <button class="pill" @click="addItem"><img class="admin-icon" src="/assets/icons/icon-plus.svg" alt="" aria-hidden="true"> {{block.type==='team'?'Участник':block.type==='numbers'?'Результат':'Публикация'}}</button>
+              </template>
+              <details class="settings-section"><summary>Отступ после блока</summary><select class="control" :value="block.spacing===undefined?'default':String(block.spacing)" @change="block.spacing=($event.target as HTMLSelectElement).value==='default'?undefined:Number(($event.target as HTMLSelectElement).value)"><option value="default">Обычный · адаптивный</option><option value="24">Компактный · 24 px</option><option value="104">Большой · 104 px</option><option v-if="block.spacing!==undefined&&![24,104].includes(block.spacing)" :value="block.spacing">Свой · {{block.spacing}} px</option></select><label class="field"><span>Точное значение, px (необязательно)</span><input :value="block.spacing" class="control" type="number" min="0" max="240" @change="setSpacing(($event.target as HTMLInputElement).value)"></label></details>
+            </template>
+          </section>
+        </div>
+      </main>
+      <main v-else class="empty"><h2>Начните с первого кейса</h2><p>Выберите структуру или создайте пустой кейс. Работа сохранится в черновике.</p><button class="pill pill--light" @click="createOpen=true">Создать кейс</button><button v-if="archive.length" class="text-button" @click="archiveOpen=true">Восстановить из архива</button></main>
     </div>
-    <section class="archive"><h2 class="section-title">Архив</h2><p v-if="!archive.length" class="status">Архив пуст</p><article v-for="(item,index) in archive" :key="item.info.title+index" class="archive-item"><span>{{item.info.title||'Без названия'}}</span><div><button class="text-button" type="button" @click="restoreProject(index)">Восстановить</button><button class="text-button danger" type="button" @click="deleteArchivedProject(index)">Удалить навсегда</button></div></article></section>
-    <ConfirmDialog :open="!!confirmation" :title="confirmation?.title||''" :description="confirmation?.description" @cancel="confirmation=null" @confirm="confirmDelete"/>
-    <ConfirmDialog :open="leavePromptOpen" title="Сохранить изменения?" description="В разделе кейсов есть несохранённые изменения." confirm-label="Сохранить" secondary-label="Не сохранять" @confirm="saveBeforeLeave" @secondary="discardBeforeLeave" @cancel="cancelLeave"/>
+    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen=false"><section class="modal" role="dialog" aria-modal="true" aria-label="Новый кейс"><div class="panel-heading"><h2>Новый кейс</h2><button class="pill" @click="createOpen=false" aria-label="Закрыть"><img class="admin-icon" src="/assets/icons/icon-cross.svg" alt="" aria-hidden="true"></button></div><label class="field"><span>Название · {{activeIso.toUpperCase()}}</span><input v-model="newTitle" class="control" autofocus></label><label class="field"><span>Начальная структура</span><select v-model="templateId" class="control"><option v-for="item in templates" :key="item.id" :value="item.id">{{item.label}}</option></select></label><p class="hint">{{templates.find(item=>item.id===templateId)?.sections.join(' · ')||'Свободная структура — добавляйте любые блоки.'}}</p><p class="hint">Шаблон можно менять. Переводы создаются отдельно; публикация потребует названий и обложек.</p><button class="pill pill--light" @click="addProject">Создать черновик</button></section></div>
+    <div v-if="pickerAt!==null" class="modal-backdrop" @click.self="pickerAt=null"><section class="modal block-library" role="dialog" aria-modal="true" aria-label="Добавить блок"><div class="panel-heading"><h2>Добавить блок</h2><button class="pill" @click="pickerAt=null" aria-label="Закрыть"><img class="admin-icon" src="/assets/icons/icon-cross.svg" alt="" aria-hidden="true"></button></div><section v-for="group in blockGroups" :key="group.title"><h3>{{group.title}}</h3><div class="block-options"><button v-for="type in types.filter(item=>group.types.includes(item.type))" :key="type.type" @click="addBlock(type.type)"><strong>{{type.label}}</strong><small>{{descriptions[type.type]}}</small></button></div></section></section></div>
+    <div v-if="publishOpen" class="modal-backdrop" @click.self="publishOpen=false"><section class="modal" role="dialog" aria-modal="true" aria-label="Публикация изменений"><div class="panel-heading"><h2>Публикация</h2><button class="pill" @click="publishOpen=false" aria-label="Закрыть"><img class="admin-icon" src="/assets/icons/icon-cross.svg" alt="" aria-hidden="true"></button></div><p>На сайт попадут все сохранённые и текущие изменения кейсов во всех языках.</p><ul><li v-for="change in changes" :key="change">{{change}}</li></ul><div v-if="issues.length" class="error-banner"><strong>Перед публикацией</strong><ul><li v-for="issue in issues" :key="issue">{{issue}}</li></ul></div><button class="pill pill--light" :disabled="!!issues.length||saving" @click="save(true)">{{saving?'Публикую…':'Опубликовать все изменения'}}</button></section></div>
+    <div v-if="previewOpen" class="preview-overlay" role="dialog" aria-modal="true" aria-label="Предпросмотр кейса"><header><strong>Предпросмотр · {{activeIso.toUpperCase()}}</strong><div class="inline-actions"><button class="pill" :class="{'pill--light':previewWidth===390}" @click="previewWidth=390">Телефон</button><button class="pill" :class="{'pill--light':previewWidth===1280}" @click="previewWidth=1280">Компьютер</button><button class="pill" @click="previewOpen=false">К редактированию <img class="admin-icon" src="/assets/icons/icon-cross.svg" alt="" aria-hidden="true"></button></div></header><p>Нажмите на блок страницы, чтобы перейти к его настройкам. Скрытые блоки не отображаются.</p><div class="preview-scroll"><iframe ref="frame" :src="previewUrl" :style="{width:previewWidth+'px'}" title="Предпросмотр страницы" @load="sendPreview"/></div></div>
+    <ConfirmDialog :open="!!confirmation" :title="confirmation?.title||''" :description="confirmation?.description" @cancel="confirmation=null" @confirm="confirm"/>
+    <ConfirmDialog :open="leaveOpen" title="Сохранить черновик перед выходом?" description="Есть изменения, которые ещё не записаны на сервер." confirm-label="Сохранить и выйти" secondary-label="Выйти без сохранения" @confirm="async()=>{if(await save())finishLeave(true)}" @secondary="discardLeave" @cancel="finishLeave(false)"/>
   </div>
 </template>
-<style scoped>
-.cases-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.cases-toolbar>div{display:flex;align-items:center;gap:8px}.cases-toolbar span{color:#888}.cases-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:32px}.case-list__item{display:flex;width:100%;gap:8px;padding:6px 0;border:0;background:none;color:#888;text-align:left;cursor:grab;transition:color .16s ease,transform .16s ease}.case-list__item:hover{color:#fff;transform:translateX(3px)}.case-list__item--active{color:#fff}.case-editor{min-width:0}.danger{margin-left:auto;color:#ff8a80}.field-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.field--wide{grid-column:span 2}.toggle{display:flex;align-items:center;gap:8px}.toggle input{width:18px;height:18px}.blocks{margin-top:40px}.blocks-head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start}.block-picker{position:relative}.block-picker__trigger{gap:4px}.block-picker__trigger img{width:20px;height:20px}.block-picker__trigger:hover img{filter:invert(1)}.block-picker__popover{position:absolute;z-index:30;top:40px;right:0;display:flex;align-items:flex-start}.block-picker__options{width:240px;padding:8px;border-radius:8px;background:#1d1d1d;box-shadow:0 16px 48px rgba(0,0,0,.5)}.block-picker__options button{display:block;width:100%;padding:6px 8px;border:0;border-radius:4px;background:transparent;color:#fff;text-align:left;transition:background-color .14s ease}.block-picker__options button:hover,.block-picker__options button:focus-visible{background:#3a3a3a;outline:0}.block-preview{position:absolute;top:0;right:248px;width:260px;padding:12px;border-radius:8px;background:#303030;box-shadow:0 16px 48px rgba(0,0,0,.5)}.block-preview>span{display:block;margin-bottom:8px;color:#bbb;font-size:12px;line-height:20px}.block-preview__canvas{display:flex;gap:6px;min-height:128px;padding:12px;border-radius:6px;background:#eee}.block-preview__canvas--two .preview-column{width:50%}.preview-column{display:flex;flex:1;flex-direction:column;gap:6px}.preview-title{display:block;width:55%;height:8px;border-radius:2px;background:#151515}.preview-line{display:block;width:100%;height:5px;border-radius:2px;background:#999}.preview-line--short{width:75%}.preview-media{display:block;flex:1;min-width:0;border-radius:4px;background:#bbb}.preview-media--large{min-height:76px}.preview-number{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px;padding:5px;border-radius:4px;background:#2fc1cb}.preview-number b{color:#fff;font-size:12px;font-style:normal;font-weight:400}.preview-number em{width:80%;height:4px;border-radius:2px;background:rgba(255,255,255,.7)}.block{margin-bottom:16px;padding:16px;border-radius:8px;background:#111;cursor:grab}.block header{display:flex;align-items:center;gap:8px;margin-bottom:16px}.block header button{margin-left:auto}.block-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.media-list,.numbers-list{display:grid;gap:12px;margin-top:16px}.media-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;cursor:grab}.number-row{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:8px}.delete-button{display:inline-flex;align-items:center;gap:2px}.delete-button img{width:20px;height:20px}.status{color:#888}.status--error{color:#ff8a80}
-@media(max-width:1079px){.cases-layout{grid-template-columns:200px minmax(0,1fr)}.field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:719px){.cases-toolbar{align-items:flex-start;flex-direction:column;gap:16px}.cases-toolbar>div:last-child{width:100%}.cases-toolbar>div:last-child button{flex:1}.cases-layout{display:block}.case-list{margin-bottom:32px}.field-grid,.block-fields{grid-template-columns:1fr}.field--wide{grid-column:auto}.blocks-head{grid-template-columns:1fr}.block-picker,.block-picker__trigger{width:100%}.block-picker__popover{right:auto;left:0}.block-preview{display:none}.number-row{grid-template-columns:80px minmax(0,1fr)}.number-row button{grid-column:1/-1}.media-row{grid-template-columns:minmax(0,1fr)}.media-row button{grid-column:1}}
-.tag-picker{position:relative}.tag-picker__trigger{width:100%;min-height:40px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tag-picker__menu{position:absolute;z-index:20;top:100%;left:0;right:0;display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;padding:8px;border-radius:8px;background:#1d1d1d;box-shadow:0 16px 48px rgba(0,0,0,.5)}.tag-picker__menu label{display:flex;align-items:center;height:32px;padding:0 10px;border-radius:100px;background:#fff;color:#000;cursor:pointer}.tag-picker__menu input{accent-color:#000;margin-right:6px}.tag-picker__menu label:has(input:not(:checked)){background:#333;color:#fff}
-.block--media-only .block-fields:empty{display:none}.block--media-only .media-list{margin-top:0}.archive{margin-top:48px;padding-top:24px;border-top:1px solid #222}.archive-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #222}.archive-item>div{display:flex;gap:16px}.archive-item .danger{margin-left:0}
-.mentions-list{display:grid;gap:12px;margin-top:16px}.mention-row{display:grid;grid-template-columns:220px minmax(0,1fr) minmax(220px,1fr) auto;gap:8px;align-items:start}.spacing-control{display:grid;grid-template-columns:auto minmax(160px,1fr) auto;gap:12px;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid #292929;color:#aaa;font-size:13px}.spacing-control input{width:100%;accent-color:#fff}
-.block{cursor:default}.block header .block-drag-handle{flex:none;margin-left:0;margin-right:0}.block header>strong{margin-right:auto}.block--dragging{opacity:.55}.block-drag-handle{display:grid;grid-template-columns:repeat(2,3px);gap:3px;width:24px;height:32px;padding:7px 6px;border:0;border-radius:6px;background:transparent;cursor:grab;touch-action:none}.block-drag-handle:hover{background:#292929}.block-drag-handle:active{cursor:grabbing}.block-drag-handle i{display:block;width:3px;height:3px;border-radius:50%;background:#777}.block-drag-handle:hover i{background:#fff}.spacing-control,.spacing-control input{cursor:default}.spacing-control input[type='range']{cursor:pointer}
-.block-duplicate{margin-top:16px}
 
-.fixed-fields{container:hero-editor / inline-size}
-.fixed-fields .field{display:flex;flex-direction:column;gap:8px;min-width:0;align-self:start;margin:0}
-.fixed-fields .field>span,.hero-editor h3,.hero-settings h3{font-size:13px;line-height:20px;color:#a5a5aa;font-weight:400}
-.fixed-fields .control{min-width:0;height:40px;box-sizing:border-box}
-.fixed-fields textarea.control{height:112px;min-height:80px;resize:vertical}
-.hero-editor{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:24px;align-items:start}
-.hero-editor__content{display:grid;gap:16px;min-width:0}
-.hero-editor__identity{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:16px;align-items:start}
-.hero-editor__metadata{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
-.hero-editor__cover{min-width:0;padding:16px;border:1px solid #292929;border-radius:12px;background:#0c0c0c}
-.hero-editor h3,.hero-settings h3{margin:0 0 12px}
-.hero-editor__cover :deep(.media-preview){max-width:none;aspect-ratio:3/2;background:#191919}
-.hero-editor__cover :deep(.media-preview img),.hero-editor__cover :deep(.media-preview video){width:100%;height:100%;object-fit:contain}
-.hero-editor__cover :deep(.media-input){align-items:start}
-.hero-settings{display:grid;gap:24px;margin-top:24px;padding-top:24px;border-top:1px solid #292929}
-.hero-colors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.hero-access{display:flex;flex-wrap:wrap;gap:16px 32px;min-height:40px;align-items:center}
-.hero-access .toggle{font-size:14px;line-height:20px;cursor:pointer}
-.hero-access input{flex:none;accent-color:#fff}
-.fixed-fields .hero-password{max-width:320px;margin-top:12px}
-.fixed-fields .tag-picker__trigger{height:auto;min-height:40px;white-space:normal;overflow-wrap:anywhere;text-overflow:clip}
-@container hero-editor (width < 680px){
-  .hero-editor{grid-template-columns:1fr}
-  .hero-editor__cover{max-width:420px;width:100%;box-sizing:border-box}
-}
-@container hero-editor (width < 460px){
-  .hero-editor__metadata,.hero-colors{grid-template-columns:1fr}
-  .hero-access{align-items:flex-start;flex-direction:column;gap:12px}
-}
+<style scoped>
+.workspace h1,.workspace h2,.workspace h3{margin:0;font-weight:400}.workspace h1{font-size:24px}.workspace h2{font-size:28px;line-height:36px}.workspace h3{font-size:17px}.workspace-toolbar{position:sticky;top:0;z-index:15;display:flex;justify-content:space-between;gap:20px;padding:16px 0;background:#000;border-bottom:1px solid #303030}.workspace-toolbar p{font-size:12px;margin:4px 0 0;color:#a8a8af}.toolbar-actions,.inline-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.editor-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:28px;margin-top:24px}.project-sidebar{min-width:0}.project-list{display:grid;gap:4px;max-height:62vh;overflow:auto}.project-row{display:grid;gap:4px;padding:12px;border:1px solid transparent;border-radius:10px;background:transparent;color:#ddd;text-align:left;width:100%}.project-row>span{overflow-wrap:anywhere}.project-row small{color:#999;font-size:11px}.is-active{background:#202024!important;border-color:#555!important;color:#fff!important}.add-case{margin:16px 0;width:100%}.archive-button{margin:24px 0}.archive-list article{display:grid;gap:10px;margin-bottom:20px}.case-heading{display:flex;align-items:center;justify-content:space-between;gap:20px}.case-heading h2{overflow-wrap:anywhere}.eyebrow{font-size:12px;color:#aaa;margin:0 0 4px}.translation-bar{display:flex;flex-wrap:wrap;gap:12px;padding:16px 0;color:#a6a6af;font-size:12px}.case-columns{display:grid;grid-template-columns:180px minmax(0,1fr);gap:24px}.outline{position:sticky;top:100px;align-self:start;max-height:calc(100vh - 130px);overflow:auto}.outline h3{font-size:13px;margin:8px 0 12px;color:#aaa}.outline>button{display:grid;gap:3px;width:100%;padding:10px;border:1px solid transparent;border-radius:8px;background:transparent;color:#ddd;text-align:left}.outline-block span{font-size:13px;line-height:18px;overflow-wrap:anywhere}.outline-block small{font-size:10px;color:#999}.outline .insert-button{padding:4px 10px;color:#aaa;font-size:12px}.outline button:hover{background:#18181c}.is-hidden{opacity:.5}.editor-panel{padding:24px;border:1px solid #303034;border-radius:14px;background:#101012;min-width:0;scroll-margin-top:110px}.panel-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.editor-panel .field,.modal .field{margin:16px 0}.field>span{font-size:13px;color:#b7b7c0}.identity-grid{display:grid;grid-template-columns:minmax(0,1fr) 90px;gap:16px}.hint,.muted{color:#a4a4ad;font-size:13px;line-height:20px}.tag-options{border:0;margin:16px 0;padding:0;display:flex;gap:8px;flex-wrap:wrap}.tag-options legend{font-size:13px;color:#b7b7c0;margin-bottom:8px}.tag-options label{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:8px;background:#242428;font-size:12px}.colors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.settings-section{border-top:1px solid #303034;margin-top:24px;padding-top:16px}.settings-section summary{cursor:pointer;font-size:14px}.toggle{display:flex;align-items:center;gap:8px;margin:12px 0;font-size:14px}.toggle input{width:18px;height:18px}.danger{color:#ffa49c}.block-actions{padding-bottom:16px;border-bottom:1px solid #303034;gap:18px}.media-sync{padding:12px;background:#202024;border-radius:8px;margin:20px 0}.media-sync small{color:#aaa}.media-item,.item-card{border:1px solid #34343a;border-radius:10px;padding:16px;margin:16px 0}.media-item>.inline-actions{margin-top:12px}.error-banner{margin:16px 0;padding:16px;border:1px solid #b75b51;border-radius:10px;background:#2e1917;color:#ffc4bd;overflow-wrap:anywhere}.error-banner button{margin:8px}.error-text{color:#ffc4bd!important}.empty{padding:40px;display:grid;justify-items:start;align-content:start;gap:16px}.empty p{color:#aaa;max-width:440px}.modal-backdrop{position:fixed;inset:0;z-index:50;background:#000b;backdrop-filter:blur(8px);display:grid;place-items:center;padding:20px}.modal{width:min(620px,100%);max-height:90vh;overflow:auto;background:#161618;border:1px solid #444;border-radius:18px;padding:28px}.modal ul{padding-left:20px;font-size:14px}.block-library{width:min(760px,100%)}.block-library section{margin-top:24px}.block-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.block-options button{display:grid;gap:6px;padding:16px;text-align:left;background:#242428;color:#fff;border:1px solid #39393e;border-radius:10px}.block-options button:hover{border-color:#fff}.block-options small{color:#aaa}.preview-overlay{position:fixed;inset:0;z-index:60;background:#202024;display:flex;flex-direction:column;padding:16px;gap:12px}.preview-overlay header{display:flex;align-items:center;justify-content:space-between;gap:16px}.preview-overlay>p{margin:0;color:#bbb;font-size:12px}.preview-scroll{overflow:auto;flex:1;min-height:0;text-align:center}.preview-scroll iframe{height:100%;min-height:400px;border:0;background:#000;max-width:none;flex-shrink:0}.workspace button:disabled{opacity:.4;cursor:default}.workspace :is(button,input,select,textarea):focus-visible{outline:2px solid #ddd;outline-offset:3px}
+@media(max-width:1100px){.case-columns{grid-template-columns:140px minmax(0,1fr);gap:16px}.editor-layout{grid-template-columns:170px minmax(0,1fr);gap:20px}.toolbar-actions{justify-content:flex-end}.workspace-toolbar{align-items:flex-start}.editor-panel{padding:16px}}
+@media(max-width:850px){.editor-layout{grid-template-columns:1fr}.project-list{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));max-height:300px;overflow-y:auto;overflow-x:hidden;padding:4px;border:1px solid #343434;border-radius:12px;scrollbar-color:#555 #151515}.project-row{min-width:0;width:100%}.project-sidebar>.field{max-width:300px}.add-case{width:auto;margin:12px 0}.archive-button{margin:12px 0}.case-columns{display:block}.outline{position:static;max-height:240px;margin-bottom:20px}.workspace-toolbar{position:relative;flex-direction:column}.toolbar-actions{justify-content:flex-start}}
+@media(max-width:580px){.case-columns{display:block}.outline{position:static;max-height:240px;margin-bottom:20px}.case-heading{align-items:flex-start;flex-direction:column}.colors{grid-template-columns:1fr}.block-options{grid-template-columns:1fr}.modal{padding:20px}.preview-overlay header{flex-direction:column;align-items:flex-start}.toolbar-actions .pill{font-size:12px}.editor-panel{scroll-margin-top:20px}}
+.history-icon{position:relative;display:inline-flex;width:20px;height:20px;flex:none}.history-icon img{width:20px;height:20px}.history-icon .icon-black{display:none}.toolbar-actions .pill{gap:6px}.toolbar-actions .pill:has(.history-icon):hover:not(:disabled){background:#fff;color:#000}.toolbar-actions .pill:hover:not(:disabled) .icon-white{display:none}.toolbar-actions .pill:hover:not(:disabled) .icon-black{display:block}
 </style>

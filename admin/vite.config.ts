@@ -12,16 +12,17 @@ export default defineConfig(({ mode }) => ({
     fs: { allow: ['..'] },
     proxy: {
       '/api': {
-        target: loadEnv(mode, adminDirectory, '').VITE_DEV_API_URL || 'http://127.0.0.1:3000',
+        target: process.env.VITE_DEV_API_URL || loadEnv(mode, adminDirectory, '').VITE_DEV_API_URL || 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
       '/__settings': {
-        target: loadEnv(mode, adminDirectory, '').VITE_DEV_API_URL || 'http://127.0.0.1:3000',
+        target: process.env.VITE_DEV_API_URL || loadEnv(mode, adminDirectory, '').VITE_DEV_API_URL || 'http://127.0.0.1:3000',
         changeOrigin: true,
         rewrite: () => '/api/settings',
       },
     },
   },
   plugins: [vue(), localMediaPlugin(adminDirectory)],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  css: { preprocessorOptions: { scss: { silenceDeprecations: ['import', 'global-builtin'] } } },
+  resolve: { dedupe: ['vue', 'vue-router'], alias: { '/assets': fileURLToPath(new URL('../ui/public/assets', import.meta.url)), '@': fileURLToPath(new URL('./src', import.meta.url)) } },
 }))

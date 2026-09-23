@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { SettingsType } from '../types/api.types';
-import { getData } from '../utils/api';
+import { getData, getLanguageIso } from '../utils/api';
 import type { DesignCategory } from './WorksView.vue';
 
 import UiCard from '../components/ui/ui-card/UiCard.vue';
@@ -57,6 +57,13 @@ const visibleProjects = computed(() => {
       || props.activeCategories.some(category => getProjectCategories(index).includes(category)));
 });
 
+const labels = computed(()=>getLanguageIso()==='ru'?{selected:'Избранные проекты',other:'Другие работы',archive:'Ранние работы'}:getLanguageIso()==='sr'?{selected:'Изабрани пројекти',other:'Други радови',archive:'Рани радови'}:{selected:'Selected projects',other:'More work',archive:'Earlier work'})
+const sections = computed(() => {
+  const archive = visibleProjects.value.filter(({project}) => project.rules.listing==='archive' || (!project.rules.listing && Math.max(...(project.info.year.match(/\d{4}/g) || ['9999']).map(Number)) < 2019))
+  const recent = visibleProjects.value.filter(item=>!archive.includes(item))
+  return [{id:'recent',title:'',items:recent},{id:'archive',title:labels.value.archive,items:archive}].filter(section=>section.items.length)
+})
+
 // Keep enough document height to prevent the browser clamping the current scroll.
 watch(() => props.activeCategories, () => {
   if (list.value) minimumHeight.value = Math.max(0, window.innerHeight - list.value.getBoundingClientRect().top);
@@ -100,22 +107,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="list" v-if="projects" :style="{ minHeight: `${minimumHeight}px` }">
-  <TransitionGroup tag="div" name="project" class="works-list" :class="{ 'works-list--resizing': resizing }" @before-enter="clearLeavingCard" @before-leave="freezeLeavingCard" @after-leave="clearLeavingCard" @leave-cancelled="clearLeavingCard">
-    <UiCard
-      v-for="({ project, index: projectIndex }) in visibleProjects"
-      :key="projectIndex"
-      :index="projectIndex"
-      :title="project.info.title"
-      :year="project.info.year"
-      :link="project.info.link"
-      :images="project.info.images"
-      :is-details="project.rules.details"
-      :is-nda="project.rules.nda"
-      :nda-password="project.rules.ndaPassword"
+  <component v-for="section in sections" :key="section.id" :is="section.id==='archive'?'details':'section'" class="project-section" :open="section.id==='archive'&&activeCategories.length>0?true:undefined">
+    <summary v-if="section.id==='archive'" class="project-section-title"><i aria-hidden="true"/>{{section.title}}</summary>
 
-      class="works-list__card"
-    />
-  </TransitionGroup>
+    <TransitionGroup tag="div" name="project" class="works-list" :class="{ 'works-list--resizing': resizing }" @before-enter="clearLeavingCard" @before-leave="freezeLeavingCard" @after-leave="clearLeavingCard" @leave-cancelled="clearLeavingCard">
+      <UiCard v-for="({project,index}) in section.items" :key="project.id||index" :index="index" :title="project.info.title" :year="project.info.year" :link="project.info.link" :images="project.info.images" :is-details="project.rules.details" :is-nda="project.rules.nda" :nda-password="project.rules.ndaPassword" class="works-list__card"/>
+    </TransitionGroup>
+  </component>
+  <p v-if="!visibleProjects.length" class="project-section-title">{{getLanguageIso()==='ru'?'Нет проектов в выбранных категориях':'No projects in these categories'}}</p>
   </div>
 </template>
 
@@ -152,6 +151,7 @@ onBeforeUnmount(() => {
     overflow: hidden;
   }
 }
+.project-section-title{margin:0 20px 20px;font-size:24px;line-height:32px;font-weight:400;color:inherit}.project-section-title span{font-size:16px;opacity:.65;margin-left:8px}summary.project-section-title{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;list-style:none}summary.project-section-title::-webkit-details-marker{display:none}summary.project-section-title i{width:24px;height:24px;background:currentColor;mask:url('/assets/icons/arrow-down-white.svg') center/contain no-repeat}details[open]>summary.project-section-title i{transform:rotate(180deg)}.project-section{margin-bottom:16px}
 </style>
 
 <style scoped>

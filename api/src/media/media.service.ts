@@ -1,3 +1,4 @@
+import { sanitizeSvg } from './svg.js';
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -10,6 +11,7 @@ interface UploadedMediaFile {
 
 const MEDIA_EXTENSIONS: Record<string, string> = {
   'image/png': '.png',
+  'image/svg+xml': '.svg',
   'image/jpeg': '.jpg',
   'image/gif': '.gif',
   'image/webp': '.webp',
@@ -30,7 +32,7 @@ export class MediaService {
     const mediaPath = join(mediaDirectory, filename);
 
     await mkdir(mediaDirectory, { recursive: true });
-    await writeFile(mediaPath, file.buffer);
+    await writeFile(mediaPath, file.mimetype === 'image/svg+xml' ? sanitizeSvg(file.buffer) : file.buffer);
 
     return `/media/${filename}`;
   }

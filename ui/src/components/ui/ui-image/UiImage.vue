@@ -12,6 +12,7 @@ import UiVideo from '../ui-video/UiVideo.vue';
 
 interface Props {
   images: string[];
+  alt?: string;
   gallery: boolean;
   alwaysOn?: boolean;
 }
@@ -38,7 +39,7 @@ const onClick = () => {
       <img
         v-if="detectContentByLink(images[0]) === 'image'"
         :src="resolveMediaUrl(images[0])"
-        alt="Preview"
+        :alt="alt || ''"
         ondragstart="return false"
         @click="onClick"
       />
@@ -67,7 +68,7 @@ const onClick = () => {
         <img
           v-if="detectContentByLink(image) === 'image'"
           :src="resolveMediaUrl(image)"
-          alt="Preview"
+          :alt="alt || ''"
           ondragstart="return false"
           @click="onClick"
         />
