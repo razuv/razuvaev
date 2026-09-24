@@ -72,7 +72,7 @@ const editableHero = computed(() => biography.value?.iso === language.value ? bi
 const categoryLabels = computed(() => [text.value.categories[0], ...(biography.value?.categories?.length ? biography.value.categories : text.value.categories.slice(1))]);
 const hero = computed(() => ({
   title: editableHero.value?.title||text.value.heading,
-  subtitle: editableHero.value?.title||text.value.heading,
+  subtitle: editableHero.value?.subtitle||text.value.subtitle,
   worked: {
     ...defaultProof.worked,
     label: text.value.worked,
