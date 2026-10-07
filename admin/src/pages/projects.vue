@@ -7,6 +7,7 @@ import MediaInput from '@/components/MediaInput.vue'
 import MediaBatch from '@/components/MediaBatch.vue'
 import ColorInput from '@/components/ColorInput.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { workspaceChanges } from '@/utils/workspace-changes'
 
 const route = useRoute()
 const settings = ref<SettingsType>(), published = ref<SettingsType['projects']>([])
@@ -105,10 +106,12 @@ async function save(publish = false): Promise<boolean> {
   if (activeSave) { await activeSave; if (publish || dirty.value) return save(publish); return !error.value }
   if (!settings.value) return false
   const payload = clone(groups.value), sent = JSON.stringify(payload)
+  const changes = workspaceChanges(JSON.parse(savedSnapshot.value), payload)
+  if (!publish && !changes.length) return true
   saving.value = true; error.value = ''
   activeSave = (async () => {
     try {
-      const result = await saveProjectWorkspace(payload, revision.value, publish)
+      const result = await saveProjectWorkspace(changes, revision.value, publish)
       revision.value = result.revision; savedAt.value = result.updatedAt; savedSnapshot.value = sent
       if (publish) { published.value = payload; publishOpen.value = false }
       return true

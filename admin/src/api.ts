@@ -1,4 +1,5 @@
 import { normalizeProjectCategories } from '../../shared/project-categories';
+import type { WorkspaceChange } from './utils/workspace-changes';
 import type { SettingsType } from '../../shared/settings.types';
 export type { SettingsType, TvTrack, Social, CaseBlock, CaseBlockType, HeroProofGroup } from '../../shared/settings.types';
 
@@ -141,10 +142,10 @@ export const getProjectWorkspace = async (): Promise<ProjectWorkspace> => {
   if (!response.ok) throw new Error('Не удалось загрузить черновики. Проверьте доступность обновлённого API.');
   return response.json();
 };
-export const saveProjectWorkspace = async (groups: SettingsType['projects'], revision: number, publish = false): Promise<{revision: number; updatedAt: string}> => {
+export const saveProjectWorkspace = async (changes: WorkspaceChange[], revision: number, publish = false): Promise<{revision: number; updatedAt: string}> => {
   const response = await fetch(`${baseUrl}/api/project-workspace`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ groups, revision, publish }),
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ changes, revision, publish }),
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

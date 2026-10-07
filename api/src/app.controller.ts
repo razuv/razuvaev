@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, Inject, NotFoundException, Param, Post, Put, Query, Res, UploadedFile, UseInterceptors, Headers, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors, Headers, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { applyWorkspaceChanges } from './workspace-changes.js';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { basename, join } from 'path';
@@ -162,6 +163,21 @@ export class AppController {
   async GetProjectWorkspace(@Headers('authorization') authorization: string) {
     this.requireAuth(authorization);
     return this.settingsService.getProjectWorkspace();
+  }
+
+  @Patch('/project-workspace')
+  @UseGuards(AdminGuard)
+  async PatchProjectWorkspace(@Headers('authorization') authorization: string, @Body() body) {
+    this.requireAuth(authorization);
+    if (!Number.isInteger(body?.revision) || body.revision < 0 || typeof body.publish !== 'boolean') {
+      throw new BadRequestException('Некорректный черновик');
+    }
+    const workspace = this.settingsService.getProjectWorkspace();
+    if (workspace.revision !== body.revision) {
+      throw new ConflictException('Кейсы изменены в другой вкладке. Скачайте резервную копию и обновите редактор.');
+    }
+    const groups = applyWorkspaceChanges(workspace.groups, body.changes);
+    return this.SaveProjectWorkspace(authorization, { groups, revision: body.revision, publish: body.publish });
   }
 
   @Put('/project-workspace')
